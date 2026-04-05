@@ -1,0 +1,3684 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Albatron RTS</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+<style>
+/* ═══════ BASE ═══════ */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#06090a;--surf:#0d1a0d;--surf2:#12241a;
+  --brd:#2a5a1a;--brd2:#3a7a2a;
+  --grn:#44cc22;--grn2:#88ee44;
+  --gold:#d4a820;--red:#cc2222;--blue:#2266ee;
+  --txt:#c8d8a0;--txt2:#7a9a60;
+}
+body{background:var(--bg);font-family:'Share Tech Mono',monospace;color:var(--txt);overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0px);padding-top:env(safe-area-inset-top,0px);}
+button{font-family:'Share Tech Mono',monospace;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);touch-action:manipulation;}
+
+
+/* ═══════ SCREENS ═══════ */
+/* Each screen = fixed full viewport, hidden by default */
+.scr{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;}
+.scr.on{display:flex;}
+
+/* ═══════ MAIN MENU ═══════ */
+#s-main{background:transparent;}
+#s-main .title-zone{
+  flex:0 0 auto;
+  display:flex;flex-direction:column;align-items:center;
+  padding:60px 20px 0;
+  text-align:center;
+}
+.gtitle{
+  font-family:'Press Start 2P',monospace;
+  font-size:clamp(24px,4vw,56px);
+  color:var(--grn);
+  text-shadow:0 0 24px #44cc2266,4px 4px 0 #1a4a0a;
+  letter-spacing:4px;
+  animation:pulse 3s ease-in-out infinite;
+}
+.gsub{font-size:11px;color:var(--txt2);letter-spacing:3px;margin-top:12px;}
+@keyframes pulse{0%,100%{text-shadow:0 0 20px #44cc2266,4px 4px 0 #1a4a0a;}50%{text-shadow:0 0 40px #88ee44aa,4px 4px 0 #1a4a0a;}}
+
+#s-main .menu-zone{
+  flex:1;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;
+  padding-bottom:100px;gap:6px;
+}
+.mbtn{
+  width:300px;
+  background:var(--surf);border:1px solid var(--brd);
+  color:var(--txt);font-size:15px;
+  padding:14px 24px;text-align:left;
+  transition:all .12s;position:relative;overflow:hidden;
+}
+.mbtn::before{content:'';position:absolute;inset:0;background:var(--grn);opacity:0;transition:opacity .15s;}
+.mbtn:hover::before{opacity:.12;}
+.mbtn:hover{border-color:var(--grn);color:var(--grn2);padding-left:32px;}
+
+/* ═══════ SUBMENUS ═══════ */
+#s-solo,#s-multi,#s-options{background:var(--surf);}
+
+.sub-header{
+  flex:0 0 auto;
+  background:var(--surf2);border-bottom:1px solid var(--brd);
+  padding:12px 24px;display:flex;align-items:center;gap:16px;
+}
+.sub-header h2{font-family:'Press Start 2P',monospace;font-size:13px;color:var(--grn);}
+.bbtn{
+  background:none;border:1px solid var(--brd);color:var(--txt2);
+  font-size:12px;padding:6px 14px;
+}
+.bbtn:hover{border-color:var(--grn);color:var(--grn);}
+
+.sub-body{flex:1;display:flex;overflow:hidden;}
+.sub-col{flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;}
+.sub-col+.sub-col{border-left:1px solid var(--brd);}
+/* Groupes repliables collés les uns aux autres */
+.sub-col>.mgroup+.mgroup,
+.sub-col>div>.mgroup+.mgroup{margin-top:0;}
+.sub-col>.mgroup,.sub-col>div>.mgroup{margin-bottom:0;}
+/* Wrapper de groupes sans gap */
+#host-panel,.mgroups-wrap{display:flex;flex-direction:column;gap:0;}
+
+.sub-footer{
+  flex:0 0 auto;
+  border-top:1px solid var(--brd);padding:12px 24px;
+  display:flex;align-items:center;justify-content:flex-end;gap:12px;
+}
+
+/* ═══════ FORM ELEMENTS ═══════ */
+.flabel{font-size:10px;color:var(--txt2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;display:block;}
+.rgroup{display:flex;gap:6px;flex-wrap:wrap;}
+.rbtn{
+  background:var(--bg);border:1px solid var(--brd);color:var(--txt2);
+  font-size:11px;padding:5px 12px;transition:all .1s;
+}
+.rbtn.on,.rbtn:hover{border-color:var(--grn);color:var(--grn);background:var(--surf2);}
+select{
+  background:var(--bg);border:1px solid var(--brd);color:var(--txt);
+  font-family:'Share Tech Mono',monospace;font-size:13px;
+  padding:7px 10px;width:100%;outline:none;
+}
+select:hover{border-color:var(--grn);}
+input[type=range]{width:100%;accent-color:var(--grn);cursor:pointer;margin-top:4px;touch-action:manipulation;}
+
+/* ═══════ MAP PREVIEW ═══════ */
+.map-canvas{display:block;width:100%;image-rendering:pixelated;border:1px solid var(--brd);}
+.map-btn{
+  background:var(--surf2);border:1px solid var(--brd2);color:var(--grn);
+  font-size:11px;padding:7px;width:100%;text-align:center;margin-top:6px;
+}
+.map-btn:hover{background:var(--surf);border-color:var(--grn);}
+
+/* ═══════ INVITE BOX ═══════ */
+.inv-box{background:var(--bg);border:1px solid var(--brd);padding:10px;display:flex;flex-direction:column;gap:6px;}
+.inv-code{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--gold);text-align:center;padding:8px;border:1px dashed var(--gold);}
+.inv-link{font-size:9px;color:var(--txt2);word-break:break-all;}
+.inv-copy{background:var(--surf2);border:1px solid var(--brd2);color:var(--txt);font-size:11px;padding:6px;width:100%;}
+.inv-copy:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ═══════ CHAT ═══════ */
+.chat-box{display:flex;flex-direction:column;height:200px;flex-shrink:0;}
+.chat-msgs{flex:1;background:var(--bg);border:1px solid var(--brd);padding:8px;font-size:10px;line-height:1.7;overflow-y:auto;min-height:0;}
+.chat-row{display:flex;margin-top:4px;}
+.chat-in{flex:1;background:var(--bg);border:1px solid var(--brd);border-right:none;color:var(--txt);font-family:'Share Tech Mono',monospace;font-size:11px;padding:6px 8px;outline:none;}
+.chat-send{background:var(--surf2);border:1px solid var(--brd);color:var(--grn);font-size:11px;padding:6px 12px;}
+.chat-send:hover{background:var(--brd);}
+.cm{color:var(--txt2);}.cm .cn{color:var(--grn);}.cm.sys{color:#4a6a4a;font-style:italic;}
+
+/* ═══════ PLAY BUTTON ═══════ */
+.playbtn{
+  background:var(--grn);border:none;color:#050a05;
+  font-family:'Press Start 2P',monospace;font-size:11px;
+  padding:12px 30px;letter-spacing:1px;transition:all .12s;
+}
+.playbtn:hover{background:var(--grn2);transform:scale(1.04);}
+
+/* ═══════ PLAYERS LIST ═══════ */
+.pslot{display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid var(--brd);font-size:11px;}
+.pdot{width:8px;height:8px;border-radius:50%;background:#4a6a4a;}
+.pdot.live{background:var(--grn);box-shadow:0 0 6px var(--grn);}
+
+/* ═══════ SUMMARY BOX ═══════ */
+.sumbox{background:var(--bg);border:1px solid var(--brd);padding:10px;font-size:11px;color:var(--txt2);line-height:1.9;}
+
+/* ═══════ GAME UI ═══════ */
+#game-ui{display:none;position:fixed;inset:0;z-index:5;}
+#topbar{position:absolute;top:0;left:0;right:0;height:38px;background:#111a0a;border-bottom:2px solid #3a5a1a;display:flex;align-items:center;padding:0 14px;padding-top:env(safe-area-inset-top,0px);gap:20px;z-index:10;}
+.res{display:flex;align-items:center;gap:5px;font-size:13px;}
+.res b{color:#e8f0a0;min-width:32px;}
+#btn-menu{margin-left:auto;background:#1a3a0a;border:1px solid #4a7a1a;color:#c8d8a0;font-family:'Share Tech Mono',monospace;font-size:11px;padding:4px 14px;}
+#btn-menu:hover{background:#2a5a10;}
+#gameCanvas{position:absolute;top:38px;left:0;right:220px;bottom:180px;display:block;image-rendering:pixelated;image-rendering:-webkit-optimize-contrast;image-rendering:crisp-edges;touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;}
+#minimap-panel{position:absolute;top:38px;right:0;width:220px;bottom:180px;background:#0d150a;border-left:2px solid #3a5a1a;}
+#minimap-panel h3{font-size:10px;color:#5a8a2a;padding:5px 8px;border-bottom:1px solid #2a3a1a;letter-spacing:1px;}
+#minimapCanvas{display:block;width:100%;image-rendering:pixelated;}
+#bottom{position:absolute;bottom:0;left:0;right:0;height:180px;background:#111a0a;border-top:2px solid #3a5a1a;display:flex;z-index:10;overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0px);}
+#sel-panel{width:200px;border-right:2px solid #2a4a1a;padding:10px;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overflow-x:hidden;flex-shrink:0;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+#sel-name{color:#a0d040;font-size:12px;font-weight:bold;}
+#sel-stats{font-size:10px;color:#7a9a60;line-height:1.7;}
+/* ─── Act panel scrollable avec groupes ─── */
+#act-panel{
+  flex:1;padding:6px 8px;
+  display:flex;flex-direction:column;gap:4px;
+  overflow-y:auto;overflow-x:hidden;
+  min-height:0;
+  -webkit-overflow-scrolling:touch; /* scroll fluide iOS */
+  overscroll-behavior:contain;
+}
+/* Scrollbar visible et stylée */
+#act-panel::-webkit-scrollbar{width:6px;}
+#act-panel::-webkit-scrollbar-track{background:#0d1a0d;}
+#act-panel::-webkit-scrollbar-thumb{background:#2a5a1a;border-radius:3px;}
+#act-panel::-webkit-scrollbar-thumb:hover{background:#44cc22;}
+#sel-panel::-webkit-scrollbar{width:4px;}
+#sel-panel::-webkit-scrollbar-track{background:#0d1a0d;}
+#sel-panel::-webkit-scrollbar-thumb{background:#2a5a1a;border-radius:2px;}
+/* Groupe repliable */
+.act-group-header{
+  display:flex;align-items:center;gap:6px;
+  background:#0e1e0e;border:1px solid #2a4a1a;
+  color:#7aaa40;font-size:9px;letter-spacing:2px;
+  padding:4px 8px;cursor:pointer;
+  user-select:none;
+  text-transform:uppercase;
+}
+.act-group-header:hover{background:#162a16;color:#88cc44;}
+.act-group-header::before{content:'▼';font-size:8px;transition:transform .15s;}
+.act-group.collapsed .act-group-header::before{content:'▶';}
+.act-group-body{
+  display:flex;flex-wrap:wrap;gap:4px;
+  padding:4px 0 0 4px;
+  min-height:0;
+}
+.act-group.collapsed .act-group-body{display:none;}
+/* Boutons */
+.abtn{
+  background:#182810;border:1px solid #3a5a1a;
+  color:#c8d8a0;font-family:'Share Tech Mono',monospace;
+  font-size:11px;padding:5px 9px;
+  min-width:90px;text-align:left;line-height:1.4;
+  flex-shrink:0;
+}
+.abtn:hover:not([disabled]){background:#2a4a10;border-color:#6aaa2a;color:#e8f8b0;}
+.abtn[disabled]{opacity:.35;cursor:not-allowed;}
+.abtn small{display:block;color:#7aaa40;font-size:9px;}
+/* Mobile : boutons plus grands */
+@media(max-width:768px){
+  .abtn{font-size:13px;padding:10px 12px;min-width:110px;min-height:44px;}
+  .abtn small{font-size:10px;}
+  .act-group-header{font-size:11px;padding:8px 10px;}
+}
+#log-panel{width:220px;border-left:2px solid #2a4a1a;padding:7px;overflow:hidden;display:flex;flex-direction:column;gap:2px;}
+#log-panel h3{font-size:10px;color:#5a8a2a;letter-spacing:1px;margin-bottom:3px;}
+.lmsg{font-size:10px;color:#5a8a50;}.lmsg.hi{color:#c8e870;}
+body.placing,body.placing *{cursor:crosshair!important;}
+#place-hint{display:none;position:absolute;top:46px;left:50%;transform:translateX(-50%);background:#1a2a0aee;border:1px solid #6aaa2a;color:#c8e870;font-size:12px;padding:5px 18px;z-index:30;pointer-events:none;}
+body.placing #place-hint{display:block;}
+
+/* version tag */
+#ver{position:fixed;bottom:10px;right:14px;font-size:9px;color:#2a4a2a;z-index:20;}
+
+/* ═══════ PAUSE OVERLAY ═══════ */
+#pause-overlay{display:none;position:fixed;inset:0;z-index:50;background:#000000bb;align-items:center;justify-content:center;}
+#pause-overlay.on{display:flex;}
+#pause-panel{background:var(--surf);border:1px solid var(--brd2);width:320px;max-width:90vw;display:flex;flex-direction:column;}
+#pause-panel .pause-title{font-family:'Press Start 2P',monospace;font-size:13px;color:var(--grn);text-align:center;padding:20px 16px 10px;border-bottom:1px solid var(--brd);letter-spacing:2px;}
+#pause-panel .pause-tag{font-size:9px;color:var(--txt2);letter-spacing:2px;text-align:center;padding:8px 0 14px;border-bottom:1px solid var(--brd);}
+#pause-panel .pmenu-zone{display:flex;flex-direction:column;padding:12px;}
+.pmbtn{background:var(--surf);border:1px solid var(--brd);color:var(--txt);font-family:'Share Tech Mono',monospace;font-size:14px;padding:13px 20px;text-align:left;position:relative;overflow:hidden;transition:all .12s;}
+.pmbtn::before{content:'';position:absolute;inset:0;background:var(--grn);opacity:0;transition:opacity .15s;}
+.pmbtn:hover::before{opacity:.1;}
+.pmbtn:hover{border-color:var(--grn);color:var(--grn2);padding-left:28px;}
+.pmbtn.resume{border-color:var(--grn);color:var(--grn);}
+.pmbtn.quit{color:#cc4444;border-color:#662222;}
+.pmbtn.quit:hover{border-color:#cc4444;}
+@media(max-width:768px){#pause-panel{width:90vw;}.pmbtn{font-size:16px;padding:16px 20px;}}
+
+/* Safari iOS : touch-action sur tous les interactifs */
+input,select,textarea{touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,0);font-size:16px !important;}
+a{touch-action:manipulation;}
+
+/* ═══════ MOBILE RESPONSIVE ═══════ */
+/* Détection tactile : les éléments hover sont supprimés sur touch */
+
+@media (max-width: 768px) {
+
+  /* ── MENUS : plus grands, scrollables ── */
+  .scr { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .sub-body { flex-direction: column !important; overflow-y: auto; }
+  .sub-col { overflow-y: visible; padding: 14px 16px; min-width: 0; }
+  .sub-col + .sub-col { border-left: none !important; border-top: 1px solid var(--brd); }
+
+  /* Boutons plus grands pour le doigt */
+  .mbtn { width: 100%; font-size: 18px; padding: 18px 20px; }
+  .rbtn { font-size: 13px; padding: 8px 16px; }
+  .bbtn { font-size: 13px; padding: 10px 18px; }
+  .playbtn { font-size: 13px; padding: 16px 36px; }
+  .abtn { font-size: 13px; padding: 10px 14px; min-width: 120px; min-height: 44px; }
+  .abtn small { font-size: 11px; }
+
+  /* Titre menu */
+  .gtitle { font-size: clamp(16px, 6vw, 32px); }
+  .gsub { font-size: 9px; }
+  #s-main .menu-zone { padding-bottom: 60px; gap: 8px; }
+
+  /* Formulaires */
+  select, input[type=range] { font-size: 14px; }
+  input[type=number] { width: 70px !important; font-size: 13px; }
+
+  /* ── JEU : layout mobile — plein écran ── */
+  #topbar {
+    height: auto;
+    min-height: 36px;
+    flex-wrap: wrap;
+    padding: 3px 6px;
+    gap: 6px;
+  }
+  .res { font-size: 10px; gap: 3px; }
+  .res b { min-width: 20px; }
+  #btn-menu { padding: 3px 8px; font-size: 9px; }
+  #player-hud { font-size: 8px; }
+
+  /* Canvas : PLEIN ÉCRAN (pleine largeur, minimap cachée sur le côté) */
+  #gameCanvas {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 140px !important;
+    /* top calculé dynamiquement par resizeMobile() */
+  }
+
+  /* Minimap côté droit : cachée, remplacée par overlay */
+  #minimap-panel { display: none !important; }
+  #log-panel { display: none !important; }
+
+  /* Bottom compact */
+  #bottom {
+    height: 140px !important;
+    overflow: hidden;
+  }
+  #sel-panel { width: 120px; padding: 5px; flex-shrink: 0; }
+  #sel-name { font-size: 10px; }
+  #sel-stats { font-size: 9px; line-height: 1.4; }
+  #act-panel { padding: 3px; gap: 3px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .abtn { font-size: 10px; padding: 6px 8px; min-width: 80px; min-height: 36px; }
+
+  /* Bouton minimap toggle */
+  #minimap-toggle { display: flex !important; }
+
+  /* Overlay minimap */
+  #minimap-overlay {
+    display: none;
+    position: fixed;
+    right: 0;
+    background: #0d150aee;
+    border: 2px solid #3a5a1a;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    z-index: 100;
+    overflow: hidden;
+    transition: all .2s ease;
+  }
+  #minimap-overlay.visible { display: block; }
+  #minimap-overlay canvas { display: block; width: 100% !important; height: auto !important; }
+
+  /* D-pad */
+  #virtual-dpad { display: flex !important; }
+}
+
+/* Paysage téléphone : bottom encore plus compact */
+@media (max-width: 768px) and (orientation: landscape) {
+  #bottom { height: 110px !important; }
+  #gameCanvas { bottom: 110px !important; }
+  #topbar { min-height: 30px; padding: 2px 6px; }
+  .res { font-size: 9px; }
+  #minimap-overlay { top: 30px; }
+  #virtual-dpad { bottom: 115px; }
+  #touch-order-btn { bottom: 115px; }
+}
+/* Portrait téléphone */
+@media (max-width: 768px) and (orientation: portrait) {
+  #minimap-overlay { top: 40px; width: 45vw; }
+  #minimap-toggle { top: 44px; }
+}
+
+@media (min-width: 769px) {
+  /* PC : cacher les éléments mobile-only */
+  #minimap-toggle { display: none !important; }
+  #minimap-overlay { display: none !important; }
+  #virtual-dpad { display: none !important; }
+  #touch-order-btn { display: none !important; }
+}
+
+/* Bouton minimap flottant */
+#minimap-toggle {
+  display: none;
+  position: fixed;
+  top: 40px;
+  right: 0;
+  z-index: 101;
+  background: #0d1a0dee;
+  border: 2px solid #3a5a1a;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: #44cc22;
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s;
+}
+#minimap-toggle:active { background: #1a3a0a; }
+#minimap-toggle.map-open { color: #88ee44; background: #1a3a0a; }
+
+/* Bouton ordre tactile (remplace clic droit) */
+#touch-order-btn {
+  display: none;
+  position: fixed;
+  bottom: 140px;
+  right: 8px;
+  z-index: 40;
+  width: 56px;
+  height: 56px;
+  background: #1a3a0a;
+  border: 2px solid #44cc22;
+  border-radius: 50%;
+  color: #44cc22;
+  font-size: 22px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+#touch-order-btn.active {
+  background: #44cc22;
+  color: #050a05;
+}
+
+/* D-pad virtuel pour la caméra */
+#virtual-dpad {
+  display: none;
+  position: fixed;
+  bottom: 140px;
+  left: 8px;
+  z-index: 40;
+  width: 110px;
+  height: 110px;
+}
+#virtual-dpad button {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  background: #1a3a0aaa;
+  border: 1px solid #44cc2266;
+  color: #44cc22;
+  font-size: 16px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#dpad-up    { top:0;    left:37px; }
+#dpad-down  { bottom:0; left:37px; }
+#dpad-left  { top:37px; left:0;    }
+#dpad-right { top:37px; right:0;   }
+
+/* ═══════ GROUPES MENU REPLIABLES ═══════ */
+.mgroup {
+  border: 1px solid var(--brd);
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mgroup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surf2);
+  border-bottom: 1px solid var(--brd);
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  font-size: 10px;
+  color: var(--grn);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  min-height: 44px; /* taille minimale tactile Apple HIG */
+}
+.mgroup-header:hover { background: #1a2e0a; }
+.mgroup-header::after { content: '▼'; font-size: 9px; color: var(--txt2); transition: transform .15s; }
+.mgroup.collapsed .mgroup-header::after { content: '▶'; }
+.mgroup-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg);
+  cursor: default;
+}
+.mgroup.collapsed .mgroup-body { display: none; }
+.mgroup-body .flabel { font-size: 9px; }
+.inp { width:64px; background:var(--bg); border:1px solid var(--brd); color:var(--txt); font-family:monospace; padding:3px 6px; }
+.inp-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; font-size:11px; }
+.inp-grid label { display:flex; flex-direction:column; gap:3px; }
+.inp-grid .flabel { font-size:9px; }
+</style>
+</head>
+<body>
+
+<div id="ver">Albatron RTS v0.3</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- MAIN MENU                             -->
+<!-- ══════════════════════════════════════ -->
+<div id="s-main" class="scr on">
+  <div class="title-zone">
+    <div class="gtitle">ALBATRON RTS</div>
+    <div class="gsub">STRATEGIE EN TEMPS REEL &middot; v0.3</div>
+  </div>
+  <div class="menu-zone">
+    <button class="mbtn" onclick="go('s-solo')">&#9876; &nbsp; SOLO</button>
+    <button class="mbtn" onclick="go('s-multi')">&#9876; &nbsp; MULTIJOUEUR</button>
+    <button class="mbtn" onclick="go('s-options')">&#9881; &nbsp; OPTIONS</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SOLO                                  -->
+<!-- ══════════════════════════════════════ -->
+<div id="s-solo" class="scr">
+  <div class="sub-header">
+    <button class="bbtn" onclick="go('s-main')">&#8592; Retour</button>
+    <h2>MODE SOLO</h2>
+  </div>
+  <div class="sub-body">
+    <!-- Col gauche: parametres -->
+    <div class="sub-col">
+      <div class="mgroups-wrap">
+
+      <!-- ⚔ PARTIE -->
+      <div class="mgroup" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">⚔ Partie</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div>
+            <span class="flabel">Difficulté</span>
+            <div class="rgroup" id="solo-diff">
+              <button class="rbtn on" data-v="easy"   onclick="rb(this,'solo-diff');updateSum()">Facile</button>
+              <button class="rbtn"    data-v="normal" onclick="rb(this,'solo-diff');updateSum()">Normal</button>
+              <button class="rbtn"    data-v="hard"   onclick="rb(this,'solo-diff');updateSum()">Difficile</button>
+              <button class="rbtn"    data-v="brutal" onclick="rb(this,'solo-diff');updateSum()">Impossible</button>
+            </div>
+          </div>
+          <div>
+            <span class="flabel">Vitesse de jeu</span>
+            <div class="rgroup" id="solo-speed">
+              <button class="rbtn"    data-v="slow"   onclick="rb(this,'solo-speed');updateSum()">Lente</button>
+              <button class="rbtn on" data-v="normal" onclick="rb(this,'solo-speed');updateSum()">Normale</button>
+              <button class="rbtn"    data-v="fast"   onclick="rb(this,'solo-speed');updateSum()">Rapide</button>
+            </div>
+          </div>
+          <div>
+            <span class="flabel">Résumé</span>
+            <div class="sumbox" id="solo-sum">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 💰 ÉCONOMIE -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">💰 Économie</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div>
+            <span class="flabel">Ressources de départ</span>
+            <div class="rgroup" id="solo-res">
+              <button class="rbtn"    data-v="low"    onclick="rb(this,'solo-res');updateSum()">Faibles</button>
+              <button class="rbtn on" data-v="normal" onclick="rb(this,'solo-res');updateSum()">Normales</button>
+              <button class="rbtn"    data-v="high"   onclick="rb(this,'solo-res');updateSum()">Abondantes</button>
+            </div>
+          </div>
+          <div>
+            <span class="flabel">Production des mines (par minute)</span>
+            <div class="inp-grid">
+              <label><span class="flabel">Or / mine</span><input type="number" class="inp" id="mine-gold-rate"  min="0" max="100" value="5"></label>
+              <label><span class="flabel">Pierre / mine</span><input type="number" class="inp" id="mine-stone-rate" min="0" max="100" value="5"></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🔬 RECHERCHE -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">🔬 Laboratoire</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div class="inp-grid">
+            <label><span class="flabel">Sc / villageois / 10s</span><input type="number" class="inp" id="lab-sci-rate"    min="1" max="20" value="1"></label>
+            <label><span class="flabel">Max villageois</span><input type="number" class="inp" id="lab-max-workers" min="1" max="10" value="3"></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🏗 CONSTRUCTION -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">🏗 Limites de construction</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div class="inp-grid">
+            <label><span class="flabel">Caserne</span><input    type="number" class="inp" id="lim-barracks"  min="1" max="100" value="5"></label>
+            <label><span class="flabel">Tour</span><input       type="number" class="inp" id="lim-tower"     min="1" max="100" value="10"></label>
+            <label><span class="flabel">Mine</span><input       type="number" class="inp" id="lim-mine"      min="1" max="100" value="10"></label>
+            <label><span class="flabel">Ferme</span><input      type="number" class="inp" id="lim-farm"      min="1" max="100" value="10"></label>
+            <label><span class="flabel">Entrepôt</span><input   type="number" class="inp" id="lim-warehouse" min="1" max="100" value="10"></label>
+            <label><span class="flabel">Laboratoire</span><input type="number" class="inp" id="lim-lab"       min="1" max="10"  value="1"></label>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /mgroups-wrap -->
+    </div>
+    <!-- Col droite: carte -->
+    <div class="sub-col">
+      <span class="flabel">Apercu de la carte</span>
+      <canvas id="cv-solo" class="map-canvas" height="260"></canvas>
+      <button class="map-btn" onclick="newMap('solo')">&#8635; Generer une nouvelle carte</button>
+    </div>
+  </div>
+  <div class="sub-footer">
+    <button class="playbtn" onclick="startGame('solo')">&#9654; JOUER</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- MULTIJOUEUR                           -->
+<!-- ══════════════════════════════════════ -->
+<div id="s-multi" class="scr">
+  <div class="sub-header">
+    <button class="bbtn" onclick="go('s-main')">&#8592; Retour</button>
+    <h2>MULTIJOUEUR P2P</h2>
+    <span id="peer-status" style="font-size:10px;color:#888;margin-left:auto;">&#9679; Initialisation...</span>
+  </div>
+  <div class="sub-body">
+    <!-- Col gauche: config -->
+    <div class="sub-col">
+      <!-- MODE SELECTOR -->
+      <div>
+        <span class="flabel">Votre role</span>
+        <div class="rgroup" id="multi-role">
+          <button class="rbtn on" data-v="host" onclick="switchMultiRole('host')">&#9654; Heberger</button>
+          <button class="rbtn"    data-v="join" onclick="switchMultiRole('join')">&#8594; Rejoindre</button>
+        </div>
+      </div>
+
+      <!-- PANNEAU HOTE -->
+      <div id="host-panel">
+
+      <!-- 👥 SALON -->
+      <div class="mgroup" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">👥 Salon</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div>
+            <span class="flabel">Nombre de joueurs (2-10)</span>
+            <div class="rgroup" id="multi-nb-grp" style="flex-wrap:wrap;gap:4px;">
+              <button class="rbtn on" data-v="2"  onclick="rbNb(this)">2</button>
+              <button class="rbtn"    data-v="3"  onclick="rbNb(this)">3</button>
+              <button class="rbtn"    data-v="4"  onclick="rbNb(this)">4</button>
+              <button class="rbtn"    data-v="5"  onclick="rbNb(this)">5</button>
+              <button class="rbtn"    data-v="6"  onclick="rbNb(this)">6</button>
+              <button class="rbtn"    data-v="7"  onclick="rbNb(this)">7</button>
+              <button class="rbtn"    data-v="8"  onclick="rbNb(this)">8</button>
+              <button class="rbtn"    data-v="9"  onclick="rbNb(this)">9</button>
+              <button class="rbtn"    data-v="10" onclick="rbNb(this)">10</button>
+            </div>
+          </div>
+          <div>
+            <div class="inv-box">
+              <div style="font-size:9px;color:var(--txt2);margin-bottom:4px;">Votre ID PeerJS :</div>
+              <div class="inv-code" id="room-code">En attente...</div>
+              <div class="inv-link" id="inv-link" style="font-size:9px;word-break:break-all;color:var(--txt2);"></div>
+              <button class="inv-copy" onclick="copyLink()">&#128203; Copier le lien d'invitation</button>
+            </div>
+          </div>
+          <div>
+            <span class="flabel">Joueurs connectés</span>
+            <div id="plist">
+              <div class="pslot"><div class="pdot live"></div> <span id="host-name-slot">Vous (Hôte)</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⚔ PARTIE -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">⚔ Partie</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div>
+            <span class="flabel">Vitesse de jeu</span>
+            <div class="rgroup" id="multi-speed">
+              <button class="rbtn"    data-v="slow"   onclick="rb(this,'multi-speed')">Lente</button>
+              <button class="rbtn on" data-v="normal" onclick="rb(this,'multi-speed')">Normale</button>
+              <button class="rbtn"    data-v="fast"   onclick="rb(this,'multi-speed')">Rapide</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 💰 ÉCONOMIE -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">💰 Économie</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div>
+            <span class="flabel">Ressources de départ</span>
+            <div class="rgroup" id="multi-res">
+              <button class="rbtn"    data-v="low"    onclick="rb(this,'multi-res')">Faibles</button>
+              <button class="rbtn on" data-v="normal" onclick="rb(this,'multi-res')">Normales</button>
+              <button class="rbtn"    data-v="high"   onclick="rb(this,'multi-res')">Abondantes</button>
+            </div>
+          </div>
+          <div>
+            <span class="flabel">Production des mines (par minute)</span>
+            <div class="inp-grid">
+              <label><span class="flabel">Or / mine</span><input type="number" class="inp" id="mmine-gold-rate"  min="0" max="100" value="5"></label>
+              <label><span class="flabel">Pierre / mine</span><input type="number" class="inp" id="mmine-stone-rate" min="0" max="100" value="5"></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🔬 LABORATOIRE -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">🔬 Laboratoire</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div class="inp-grid">
+            <label><span class="flabel">Sc / villageois / 10s</span><input type="number" class="inp" id="mlab-sci-rate"    min="1" max="20" value="1"></label>
+            <label><span class="flabel">Max villageois</span><input type="number" class="inp" id="mlab-max-workers" min="1" max="10" value="3"></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 🏗 LIMITES DE CONSTRUCTION -->
+      <div class="mgroup collapsed" onclick="this.classList.toggle('collapsed')">
+        <div class="mgroup-header">🏗 Limites de construction</div>
+        <div class="mgroup-body" onclick="event.stopPropagation()">
+          <div class="inp-grid">
+            <label><span class="flabel">Caserne</span><input    type="number" class="inp" id="mlim-barracks"  min="1" max="100" value="5"></label>
+            <label><span class="flabel">Tour</span><input       type="number" class="inp" id="mlim-tower"     min="1" max="100" value="10"></label>
+            <label><span class="flabel">Mine</span><input       type="number" class="inp" id="mlim-mine"      min="1" max="100" value="10"></label>
+            <label><span class="flabel">Ferme</span><input      type="number" class="inp" id="mlim-farm"      min="1" max="100" value="10"></label>
+            <label><span class="flabel">Entrepôt</span><input   type="number" class="inp" id="mlim-warehouse" min="1" max="100" value="10"></label>
+            <label><span class="flabel">Laboratoire</span><input type="number" class="inp" id="mlim-lab"       min="1" max="10"  value="1"></label>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /host-panel -->
+
+      <!-- PANNEAU REJOINDRE -->
+      <div id="join-panel" style="display:none;">
+        <div>
+          <span class="flabel">Code du salon (ID hote)</span>
+          <input id="join-code-input" type="text" placeholder="Collez le code ici..."
+            style="width:100%;background:var(--bg);border:1px solid var(--brd);color:var(--txt);font-family:'Share Tech Mono',monospace;font-size:13px;padding:8px 10px;outline:none;text-transform:uppercase;"
+            maxlength="20" oninput="this.value=this.value.toUpperCase()">
+          <button class="map-btn" style="margin-top:6px;" onclick="joinRoom()">&#8594; Se connecter</button>
+        </div>
+        <div id="join-status" style="font-size:11px;color:var(--txt2);padding:8px;border:1px solid var(--brd);background:var(--bg);min-height:40px;"></div>
+        <div>
+          <span class="flabel">En attente de l'hote...</span>
+          <div id="plist-join">
+            <div class="pslot"><div class="pdot live"></div> Vous (Client)</div>
+          </div>
+        </div>
+      </div><!-- /join-panel -->
+    </div>
+    <!-- Col droite: carte + chat -->
+    <div class="sub-col">
+      <span class="flabel">Apercu de la carte</span>
+      <canvas id="cv-multi" class="map-canvas" height="180"></canvas>
+      <button class="map-btn" onclick="newMap('multi')">&#8635; Generer une nouvelle carte</button>
+      <div style="margin-top:8px;">
+        <span class="flabel">Chat</span>
+        <div class="chat-box">
+          <div class="chat-msgs" id="lobby-chat"></div>
+          <div class="chat-row">
+            <input class="chat-in" id="lobby-in" type="text" placeholder="Message..." maxlength="120" onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="chat-send" onclick="sendChat()">&#9658;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sub-footer">
+    <span id="multi-wait-txt" style="font-size:10px;color:var(--txt2);">En attente des joueurs...</span>
+    <button id="multi-launch-btn" class="playbtn" onclick="startGame('multi')" disabled style="opacity:.5;cursor:not-allowed;pointer-events:none;">&#9654; LANCER</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- OPTIONS                               -->
+<!-- ══════════════════════════════════════ -->
+<div id="s-options" class="scr">
+  <div class="sub-header">
+    <button class="bbtn" onclick="optionsBack()">&#8592; Retour</button>
+    <h2>OPTIONS</h2>
+  </div>
+  <div class="sub-body">
+    <div class="sub-col">
+      <div>
+        <span class="flabel">&#9728; Luminosite &nbsp;<span id="v-bright" style="color:var(--gold)">100%</span></span>
+        <input type="range" id="o-bright" min="40" max="150" value="100" oninput="applyOpts()">
+      </div>
+      <div>
+        <span class="flabel">&#127752; Saturation des couleurs &nbsp;<span id="v-sat" style="color:var(--gold)">100%</span></span>
+        <input type="range" id="o-sat" min="0" max="200" value="100" oninput="applyOpts()">
+      </div>
+      <div>
+        <span class="flabel">&#127912; Theme de couleur</span>
+        <div class="rgroup" id="o-theme">
+          <button class="rbtn on" data-v="green" onclick="rb(this,'o-theme');setTheme('green')">Foret</button>
+          <button class="rbtn"    data-v="blue"  onclick="rb(this,'o-theme');setTheme('blue')">Ocean</button>
+          <button class="rbtn"    data-v="red"   onclick="rb(this,'o-theme');setTheme('red')">Lave</button>
+          <button class="rbtn"    data-v="gold"  onclick="rb(this,'o-theme');setTheme('gold')">Sable</button>
+        </div>
+      </div>
+    </div>
+    <div class="sub-col">
+      <div>
+        <span class="flabel">&#128266; Volume sonore &nbsp;<span id="v-sfx" style="color:var(--gold)">80%</span></span>
+        <input type="range" id="o-sfx" min="0" max="100" value="80" oninput="applyOpts()">
+      </div>
+      <div>
+        <span class="flabel">&#127925; Volume musique &nbsp;<span id="v-music" style="color:var(--gold)">60%</span></span>
+        <input type="range" id="o-music" min="0" max="100" value="60" oninput="applyOpts()">
+      </div>
+      <div>
+        <span class="flabel">&#127925; Piste musicale</span>
+        <div class="rgroup" id="o-track">
+          <button class="rbtn on" data-v="epic"    onclick="rb(this,'o-track')">Epique</button>
+          <button class="rbtn"    data-v="ambient" onclick="rb(this,'o-track')">Ambiance</button>
+          <button class="rbtn"    data-v="off"     onclick="rb(this,'o-track')">Aucune</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sub-footer">
+    <button class="playbtn" style="font-size:10px;padding:10px 22px;" onclick="saveOpts();optionsBack()">&#10003; Sauvegarder</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- GAME UI                               -->
+<!-- ══════════════════════════════════════ -->
+<div id="game-ui">
+  <div id="topbar">
+    <div class="res">Or: <b id="r-gold">200</b></div>
+    <div class="res">Bois: <b id="r-wood">100</b></div>
+    <div class="res">Pierre: <b id="r-stone">0</b></div>
+    <div class="res">Science: <b id="r-science">0</b></div>
+    <div class="res">Pop: <b id="r-pop">0</b>/<b id="r-popmax">10</b></div>
+    <button id="btn-menu" onclick="goMenu()">&#9776; Menu</button>
+    <span id="research-hud" style="font-size:10px;color:#8888ff;margin-left:8px;"></span>
+  </div>
+  <canvas id="gameCanvas" style="touch-action:none;"></canvas>
+  <div id="minimap-panel"><h3>CARTE</h3><canvas id="minimapCanvas"></canvas>
+    <!-- Chat in-game multijoueur -->
+    <div id="ingame-chat-panel" style="display:none;flex-direction:column;border-top:1px solid #2a4a1a;height:140px;flex-shrink:0;">
+      <div style="font-size:9px;color:#5a8a2a;letter-spacing:1px;padding:3px 6px;border-bottom:1px solid #1a3a1a;flex-shrink:0;">TCHAT</div>
+      <div id="ingame-chat-msg" style="flex:1;overflow-y:auto;padding:4px 6px;font-size:10px;line-height:1.5;min-height:0;"></div>
+      <div style="display:flex;flex-shrink:0;border-top:1px solid #1a3a1a;">
+        <input id="ingame-chat-input" type="text" placeholder="Message..." maxlength="80"
+          style="flex:1;background:#080e08;border:none;color:#c8d8a0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 6px;outline:none;"
+          onkeydown="if(event.key==='Enter')sendIngameChat()">
+        <button onclick="sendIngameChat()" style="background:#1a3a0a;border:none;border-left:1px solid #2a4a1a;color:#44cc22;font-size:12px;padding:4px 10px;cursor:pointer;flex-shrink:0;">&#9658;</button>
+      </div>
+    </div>
+  </div>
+  <div id="bottom">
+    <div id="sel-panel">
+      <div id="sel-name">Rien de selectionne</div>
+      <div id="sel-stats">Cliquez sur une unite.</div>
+    </div>
+    <div id="act-panel"></div>
+    <div id="log-panel"><h3>JOURNAL</h3></div>
+  </div>
+  <div id="place-hint">Clic gauche = placer &nbsp;|&nbsp; Clic droit / Echap = annuler</div>
+
+  <!-- ── Éléments mobile-only ── -->
+  <!-- Bouton minimap mobile : icône carte, toggle -->
+  <button id="minimap-toggle" onclick="toggleMinimap()" title="Carte">🗺</button>
+  <!-- Overlay minimap : s'ouvre depuis la droite -->
+  <div id="minimap-overlay" onclick="toggleMinimap()" style="cursor:pointer;">
+    <canvas id="minimapMobile"></canvas>
+  </div>
+  <button id="touch-order-btn" title="Mode ordre (remplace clic droit)">⚔</button>
+  <div id="virtual-dpad">
+    <button id="dpad-up"    ontouchstart="dpadStart('z')" ontouchend="dpadStop('z')">▲</button>
+    <button id="dpad-down"  ontouchstart="dpadStart('s')" ontouchend="dpadStop('s')">▼</button>
+    <button id="dpad-left"  ontouchstart="dpadStart('q')" ontouchend="dpadStop('q')">◀</button>
+    <button id="dpad-right" ontouchstart="dpadStart('d')" ontouchend="dpadStop('d')">▶</button>
+  </div>
+  <div id="research-tooltip" style="
+    display:none;position:fixed;bottom:170px;left:12px;
+    background:#0d1a0dcc;border:1px solid #3a7a2a;
+    padding:10px 14px;max-width:260px;z-index:50;
+    font-family:'Share Tech Mono',monospace;font-size:11px;
+    color:#c8d8a0;pointer-events:none;backdrop-filter:blur(4px);
+    line-height:1.7;
+  "></div>
+</div>
+
+<script>
+
+// Déclaré en premier — utilisé dans resize() et partout
+var isMobile = /Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || window.matchMedia('(max-width:768px)').matches;
+
+// ══════════════════════════════════════════════
+// MENU LOGIC
+// ══════════════════════════════════════════════
+
+// ── Navigation ──
+function go(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  let el=document.getElementById(id);
+  if(el) el.classList.add('on');
+  if(id==='s-solo'){newMap('solo');updateSum();}
+  if(id==='s-multi'){newMap('multi');initPeer();}
+}
+function goMenu(){
+  openPause();
+}
+
+// ── Radio buttons ──
+function rb(el,gid){
+  document.getElementById(gid).querySelectorAll('.rbtn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+function rv(gid){
+  let a=document.getElementById(gid)?.querySelector('.rbtn.on');
+  return a?a.dataset.v:'normal';
+}
+
+// ── Solo summary ──
+function updateSum(){
+  let d={easy:'Défensive — patrouille sa base',normal:'Défensive + attaques ponctuelles',hard:'Agressive — attaque tôt',brutal:'Impossible — ruée dès le début'}[rv('solo-diff')]||'';
+  let r={low:'Or 100 / Bois 50',normal:'Or 200 / Bois 100',high:'Or 500 / Bois 250'}[rv('solo-res')]||'';
+  let s={slow:'x0.6',normal:'x1.0',fast:'x1.5'}[rv('solo-speed')]||'';
+  document.getElementById('solo-sum').innerHTML=
+    'Difficulte : <span style="color:#c8e870">'+d+'</span><br>'+
+    'Ressources : <span style="color:var(--gold)">'+r+'</span><br>'+
+    'Vitesse &nbsp;&nbsp; : <span style="color:#88aaff">'+s+'</span>';
+}
+
+// ── Map previews ──
+let pmaps={solo:null,multi:null};
+const PC={0:['#2a4a10','#2e5212'],1:['#163208','#1a3a08'],2:['#0a1e3a','#0c2040'],3:['#5a4a10','#6a5612']};
+
+function genPMap(){
+  let m=Array.from({length:30},()=>new Uint8Array(40));
+  let rx=24;
+  for(let y=0;y<30;y++){rx+=(Math.random()-.5)*2;rx=Math.max(18,Math.min(30,rx));for(let x=Math.floor(rx);x<Math.floor(rx)+2;x++) if(x<40)m[y][x]=2;}
+  for(let i=0;i<8;i++){let cx=Math.floor(Math.random()*40),cy=Math.floor(Math.random()*30),r=2+Math.floor(Math.random()*4);for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++)if(dx*dx+dy*dy<=r*r&&cx+dx>=0&&cx+dx<40&&cy+dy>=0&&cy+dy<30&&m[cy+dy][cx+dx]===0&&Math.random()<.75)m[cy+dy][cx+dx]=1;}
+  for(let i=0;i<4;i++){let cx=Math.floor(Math.random()*40),cy=Math.floor(Math.random()*30);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(cx+dx>=0&&cx+dx<40&&cy+dy>=0&&cy+dy<30&&m[cy+dy][cx+dx]===0)m[cy+dy][cx+dx]=3;}
+  return m;
+}
+function drawPMap(el,m){
+  if(!m||!el)return;
+  el.width=el.offsetWidth||el.parentElement?.clientWidth||300;
+  let tw=el.width/40,th=el.height/30,px=el.getContext('2d');
+  px.clearRect(0,0,el.width,el.height);
+  for(let y=0;y<30;y++) for(let x=0;x<40;x++){px.fillStyle=PC[m[y][x]][(x*3+y*7)%PC[m[y][x]].length];px.fillRect(x*tw,y*th,Math.ceil(tw)+1,Math.ceil(th)+1);}
+  px.fillStyle='#44cc2299';px.fillRect(2*tw,2*th,4*tw,4*th);
+  px.fillStyle='#cc222299';px.fillRect(34*tw,24*th,4*tw,4*th);
+  px.fillStyle='#fff';px.font='bold 9px monospace';px.textAlign='center';
+  px.fillText('P1',4*tw,4.5*th);px.fillText('IA',36*tw,26.5*th);px.textAlign='left';
+}
+function newMap(w){pmaps[w]=genPMap();setTimeout(()=>drawPMap(document.getElementById('cv-'+w),pmaps[w]),10);}
+
+function copyLink(){
+  let link=document.getElementById('inv-link').textContent;
+  if(!link||link.length<5||link==='En attente...'){addChat('Attendez que le code de salon apparaisse...','sys');return;}
+  navigator.clipboard.writeText(link).then(()=>{
+    let b=document.querySelector('.inv-copy');
+    b.textContent='✓ Copie!';setTimeout(()=>b.textContent='📋 Copier le lien',2000);
+    addChat('Lien copie!','sys');
+  }).catch(()=>{
+    let inp=document.createElement('input');inp.value=link;document.body.appendChild(inp);inp.select();document.execCommand('copy');document.body.removeChild(inp);
+    addChat('Lien copie!','sys');
+  });
+}
+
+// ── Lobby chat ──
+function addChat(msg,type,name){
+  let el=document.getElementById('lobby-chat');
+  if(!el)return;
+  let d=document.createElement('div');d.className='cm';
+  if(type==='sys'){d.className='cm sys';d.textContent='⚙ '+msg;}
+  else{d.innerHTML='<span class="cn">['+(name||'Vous')+']</span> '+msg;}
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+function sendChat(){
+  let i=document.getElementById('lobby-in');
+  if(!i||!i.value.trim())return;
+  let msg=i.value.trim();
+  addChat(msg,'msg','Vous');
+  let d={type:'chat',msg,name:'Vous'};
+  if(isHost) sendToAll(d); else if(hostConn&&hostConn.open) hostConn.send(d);
+  i.value='';
+}
+
+// ── Options ──
+function applyOpts(){
+  let br=document.getElementById('o-bright').value;
+  let sa=document.getElementById('o-sat').value;
+  document.getElementById('v-bright').textContent=br+'%';
+  document.getElementById('v-sat').textContent=sa+'%';
+  document.getElementById('v-sfx').textContent=document.getElementById('o-sfx').value+'%';
+  document.getElementById('v-music').textContent=document.getElementById('o-music').value+'%';
+  document.documentElement.style.setProperty('--brightness',br/100);
+  document.documentElement.style.setProperty('--saturation',sa/100);
+}
+function setTheme(t){
+  const T={green:{brd:'#2a5a1a',grn:'#44cc22',grn2:'#88ee44'},blue:{brd:'#1a2a5a',grn:'#2266ee',grn2:'#44aaff'},red:{brd:'#5a1a1a',grn:'#cc2222',grn2:'#ee4444'},gold:{brd:'#5a4a1a',grn:'#d4a820',grn2:'#eec840'}};
+  let th=T[t];if(!th)return;
+  document.documentElement.style.setProperty('--brd',th.brd);
+  document.documentElement.style.setProperty('--grn',th.grn);
+  document.documentElement.style.setProperty('--grn2',th.grn2);
+}
+function saveOpts(){try{localStorage.setItem('albatron-opts',JSON.stringify({br:document.getElementById('o-bright').value,sa:document.getElementById('o-sat').value,sfx:document.getElementById('o-sfx').value,mus:document.getElementById('o-music').value,theme:rv('o-theme')}));}catch(e){}}
+function loadOpts(){try{let o=JSON.parse(localStorage.getItem('albatron-opts')||'{}');if(o.br)document.getElementById('o-bright').value=o.br;if(o.sa)document.getElementById('o-sat').value=o.sa;if(o.sfx)document.getElementById('o-sfx').value=o.sfx;if(o.mus)document.getElementById('o-music').value=o.mus;applyOpts();if(o.theme)setTheme(o.theme);}catch(e){}}
+loadOpts();
+
+// ── Start game ──
+let loopRunning=false;
+
+let gameSpeedMult=1;
+let eaiMult=1;
+let _aiDiff='normal'; // difficulté IA courante
+let buildLimits={barracks:5,tower:10,mine:10,farm:10,warehouse:10,lab:1};
+let mineRates={gold:5,stone:5};
+let labConfig={sciRate:1,maxWorkers:3};
+// Arbre de recherche: 4 branches, 3 niveaux chacune
+const RESEARCH_TREE={
+  fortification:{name:'Fortification',desc:'+25% PV batiments',levels:3,
+    details:[
+      'Niv.1 : PV de tous vos batiments +25%\nBases, casernes, tours et entrepots plus resistants.',
+      'Niv.2 : PV de tous vos batiments +50%\nVos defenses deviennent beaucoup plus solides.',
+      'Niv.3 : PV de tous vos batiments +75%\nFortification maximale. Vos batiments encaissent presque tout.'
+    ],
+    cost:[{g:80,w:40,sc:30},{g:150,w:80,sc:70},{g:250,w:120,sc:130}],time:[200,350,500]},
+  engineering:  {name:'Ingenierie',   desc:'-20% temps construction',levels:3,
+    details:[
+      'Niv.1 : Construction 20% plus rapide.\nVos villageois batissent avec plus d efficacite.',
+      'Niv.2 : Construction 40% plus rapide.\nLes chantiers avancent nettement plus vite.',
+      'Niv.3 : Construction 60% plus rapide.\nIngenierie maximale. Les batiments s elevent en un instant.'
+    ],
+    cost:[{g:60,w:60,sc:25},{g:120,w:120,sc:60},{g:200,w:200,sc:100}],time:[180,320,480]},
+  extraction:   {name:'Extraction',   desc:'+50% prod. mines',levels:3,
+    details:[
+      'Niv.1 : Production de toutes vos mines +50%.\nTechniques d extraction ameliorees.',
+      'Niv.2 : Production de toutes vos mines +100%.\nLes mines produisent deux fois plus.',
+      'Niv.3 : Production de toutes vos mines +150%.\nExtraction maximale. Vos ressources s accumulent rapidement.'
+    ],
+    cost:[{g:70,w:30,sc:40},{g:140,w:60,sc:90},{g:220,w:100,sc:150}],time:[220,380,560]},
+  agriculture:  {name:'Agriculture',  desc:'+2 pop max/ferme',levels:3,
+    details:[
+      'Niv.1 : Chaque ferme donne +2 population supplementaire.\nMeilleures cultures, plus de bouches a nourrir.',
+      'Niv.2 : Chaque ferme donne +4 population supplementaire.\nVos colonies s agrandissent davantage.',
+      'Niv.3 : Chaque ferme donne +6 population supplementaire.\nAgriculture maximale. Population illimitee ou presque.'
+    ],
+    cost:[{g:50,w:80,sc:20},{g:100,w:160,sc:50},{g:180,w:260,sc:90}],time:[160,300,440]},
+};
+let techLevels={fortification:0,engineering:0,extraction:0,agriculture:0};
+let activeResearch=null; // {key, progress, totalTime}
+
+const resMap={low:{g:100,w:50,s:0},normal:{g:200,w:100,s:0},high:{g:500,w:250,s:50}};
+function getLim(prefix,type){
+  let el=document.getElementById(prefix+type);
+  return el?Math.min(100,Math.max(1,parseInt(el.value)||10)):10;
+}
+function startGame(mode){
+  let rk=mode==='solo'?rv('solo-res'):rv('multi-res');
+  let spd=mode==='solo'?rv('solo-speed'):rv('multi-speed');
+  let diff=mode==='solo'?rv('solo-diff'):'normal';
+  let pre=mode==='solo'?'lim-':'mlim-';
+  let bl={
+    barracks: getLim(pre,'barracks'),
+    tower:    getLim(pre,'tower'),
+    mine:     getLim(pre,'mine'),
+    farm:     getLim(pre,'farm'),
+    warehouse:getLim(pre,'warehouse'),
+    lab:     getLim(pre,'lab'),
+  };
+  let mpre=mode==='solo'?'mine-':'mmine-';
+  let mr={
+    gold:  Math.min(100,Math.max(0,parseInt(document.getElementById(mpre+'gold-rate')?.value)||5)),
+    stone: Math.min(100,Math.max(0,parseInt(document.getElementById(mpre+'stone-rate')?.value)||5)),
+  };
+  let lpre=mode==='solo'?'lab-':'mlab-';
+  let lc={
+    sciRate:    Math.min(20,Math.max(1,parseInt(document.getElementById(lpre+'sci-rate')?.value)||1)),
+    maxWorkers: Math.min(10,Math.max(1,parseInt(document.getElementById(lpre+'max-workers')?.value)||3)),
+  };
+  let config={mode,startRes:resMap[rk]||resMap.normal,buildLimits:bl,mineRates:mr,labConfig:lc};
+  gameSpeedMult={slow:.6,normal:1,fast:1.5}[spd]||1;
+  eaiMult={easy:.4,normal:1,hard:2,brutal:4}[diff]||1;
+  _aiDiff=diff;
+  aiRes={g:config.startRes.g, w:config.startRes.w, s:config.startRes.s||0, sc:0, popMax:10};
+  _aiAttackTimer=0; _aiNextAttack=0;
+
+  if(mode==='multi'){
+    // Multijoueur: l'hôte envoie la config et le seed
+    launchMultiHost(config);
+    return;
+  }
+
+  // Solo
+  multiMode=false;
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('game-ui').style.display='block';
+  // Cacher chat ingame en solo
+  let chatPanel=document.getElementById('ingame-chat-panel');
+  if(chatPanel) chatPanel.style.display='none';
+  resize();
+  if(isMobile){ setupTouchCanvas(); setupTouchOrderBtn(); }
+  initGame(config);
+  if(!loopRunning){loopRunning=true;startGameLoop();requestAnimationFrame(loop);}
+}
+
+// Init chat message
+setTimeout(()=>addChat('Bienvenue ! Partagez le code pour inviter des amis.','sys'),200);
+
+// ══════════════════════════════════════════════
+// GAME ENGINE
+// ══════════════════════════════════════════════
+const TILE=16,MW=80,MH=60;
+const T_GRASS=0,T_FOREST=1,T_WATER=2,T_GOLD=3,T_STONE=4;
+const TCOLS={[T_GRASS]:['#2a4a10','#2e5212','#264510','#325614'],[T_FOREST]:['#163208','#1a3a08','#122e06','#1e4208'],[T_WATER]:['#0a1e3a','#0c2040','#081a34'],[T_GOLD]:['#5a4a10','#6a5612','#4e4010'],[T_STONE]:['#3a3a3a','#363636','#3e3e3e']};
+const BSIZE={base:3,barracks:2,tower:1,mine:2,farm:2,warehouse:2,lab:2};
+const BMHP={base:500,barracks:250,tower:200,mine:150,farm:120,warehouse:180,lab:200,villager:40,soldier:80,archer:60,knight:140,esoldier:65,earcher:55};
+const BCOST={barracks:{g:120,w:80},mine:{g:80,w:40},farm:{g:60,w:50},tower:{g:60,w:20,s:40},warehouse:{g:80,w:60},wall:{g:20,w:0,s:30},lab:{g:150,w:100,s:50}};
+const BTIME={barracks:300,mine:200,farm:200,tower:240,warehouse:220,lab:300};
+const TCOST={villager:{g:50,t:150},soldier:{g:50,t:180},archer:{g:60,t:200},knight:{g:120,t:300}};
+const NAMES={base:'Base',barracks:'Caserne',tower:'Tour',mine:'Mine',farm:'Ferme',warehouse:'Entrepot',lab:'Laboratoire',villager:'Villageois',soldier:'Soldat',archer:'Archer',knight:'Chevalier',esoldier:'Soldat ennemi',earcher:'Archer ennemi'};
+const SPD={villager:2.0,soldier:2.3,archer:1.9,knight:1.7,esoldier:1.6,earcher:1.4};
+const ATK={soldier:9,archer:6,knight:16,esoldier:7,earcher:5,villager:3};
+const RNG={archer:85,earcher:75};
+const TOWER_RANGE=120; // portee de tir de la tour
+const ASPD={soldier:38,archer:55,knight:32,esoldier:42,earcher:58,villager:80};
+
+let map,entities,sel,cam,res,frame,gstate,placeMode,pendingRally,eid=1;
+let mouse={wx:0,wy:0,sx:0,sy:0};
+let projectiles=[];
+
+
+let drag=null,dragRect=null;
+let rallyMode=null; // building waiting for rally point placement
+
+const canvas=document.getElementById('gameCanvas');
+const ctx=canvas.getContext('2d');
+const miniC=document.getElementById('minimapCanvas');
+const miniX=miniC.getContext('2d');
+
+// Dimensions CSS du canvas (indépendantes du devicePixelRatio)
+let canvasW = 0, canvasH = 0;
+
+function resize(){
+  if(isMobile){ resizeMobile(); return; }
+  const tbH=38, btH=180, mmW=220;
+  canvasW = window.innerWidth - mmW;
+  canvasH = window.innerHeight - tbH - btH;
+  canvas.style.top    = tbH + 'px';
+  canvas.style.left   = '0';
+  canvas.style.right  = mmW + 'px';
+  canvas.style.bottom = btH + 'px';
+  canvas.style.width  = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  canvas.width  = canvasW;
+  canvas.height = canvasH;
+  miniC.width=218; miniC.height=Math.round(218*MH/MW);
+}
+
+function genMap(){
+  _gRng=seededRandom(Math.floor(Math.random()*2147483647));
+  map=Array.from({length:MH},()=>new Uint8Array(MW));
+  let rx=MW*.62;
+  for(let y=0;y<MH;y++){rx+=(Math.random()-.5)*2;rx=Math.max(MW*.5,Math.min(MW*.75,rx));for(let x=Math.floor(rx);x<Math.floor(rx)+3;x++) if(x<MW)map[y][x]=T_WATER;}
+  for(let i=0;i<18;i++){let cx=ri(MW),cy=ri(MH),r=3+ri(5);for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) if(dx*dx+dy*dy<=r*r&&inM(cx+dx,cy+dy)&&map[cy+dy][cx+dx]===T_GRASS&&Math.random()<.75)map[cy+dy][cx+dx]=T_FOREST;}
+  for(let i=0;i<7;i++) patch(T_GOLD);
+  for(let i=0;i<6;i++) patch(T_STONE);
+  // Effacer les ressources sous les zones de depart des batiments
+  clearZone(3,3,5);    // base joueur (3x3 + marge)
+  clearZone(MW-9,MH-9,5); // base ennemie
+}
+function clearZone(tx,ty,radius){
+  for(let dy=-radius;dy<=radius+4;dy++)
+    for(let dx=-radius;dx<=radius+4;dx++)
+      if(inM(tx+dx,ty+dy)) map[ty+dy][tx+dx]=T_GRASS;
+}
+function patch(t){let cx=ri(MW),cy=ri(MH);for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) if(dx*dx+dy*dy<=5&&inM(cx+dx,cy+dy)&&map[cy+dy][cx+dx]===T_GRASS)map[cy+dy][cx+dx]=t;}
+function inM(x,y){return x>=0&&x<MW&&y>=0&&y<MH;}
+function tAt(wx,wy){let x=Math.floor(wx/TILE),y=Math.floor(wy/TILE);return inM(x,y)?map[y][x]:null;}
+
+
+function mk(type,x,y,team){return{id:eid++,type,x,y,team,hp:BMHP[type]||50,maxHp:BMHP[type]||50,state:'idle',target:null,task:null,progress:0,cooldown:0,carry:{g:0,w:0,s:0},buildProgress:0,buildDone:false,training:null,trainTimer:0,rallyX:x,rallyY:y+1,builders:[]};}
+function spawn(type,x,y,team){let e=mk(type,x,y,team);entities.push(e);return e;}
+function isUnit(e){return['villager','soldier','archer','knight','esoldier','earcher'].includes(e.type);}
+function isBuilding(e){return['base','barracks','tower','mine','farm','warehouse','lab'].includes(e.type);}
+function bsz(t){return BSIZE[t]||2;}
+
+function initGame(cfg){
+  cfg=cfg||{startRes:{g:200,w:100}};
+  genMap();entities=[];sel=[];frame=0;gstate='playing';
+  placeMode=null;pendingRally=null;eid=1;
+  document.body.classList.remove('placing');
+  res={g:cfg.startRes.g,w:cfg.startRes.w,s:cfg.startRes.s||0,sc:0,popMax:10};
+  buildLimits=cfg.buildLimits||{barracks:5,tower:10,mine:10,farm:10,warehouse:10};
+  mineRates=cfg.mineRates||{gold:5,stone:5};
+  labConfig=cfg.labConfig||{sciRate:1,maxWorkers:3};
+  document.getElementById('log-panel').innerHTML='<h3>JOURNAL</h3>';
+  _lg=-1;_lw=-1;_lp=-1;_ls=-1;_lsc=-1;_lfarms=-1;_lagri=-1;_lpopmax=-1;
+  res.popMax=10; // sera recalcule apres construction de fermes
+  let px=3*TILE,py=3*TILE;
+  let pbase=spawn('base',px,py,'p');
+  pbase.buildDone=true;
+  pbase.rallyX=px+bsz('base')*TILE/2;
+  pbase.rallyY=py+bsz('base')*TILE+TILE;
+  spawn('villager',px+4*TILE,py+2*TILE,'p');
+  spawn('villager',px+5*TILE,py+2*TILE,'p');
+  cam={x:px-(canvasW||canvas.width)/2+48,y:py-(canvasH||canvas.height)/2+48};
+  let ex=(MW-7)*TILE,ey=(MH-7)*TILE;
+  let ebase=spawn('base',ex,ey,'e');
+  ebase.buildDone=true;
+  ebase.rallyX=ex+bsz('base')*TILE/2;
+  ebase.rallyY=ey+bsz('base')*TILE+TILE;
+  // Mêmes unités de départ que le joueur : 2 villageois devant la base
+  let ev1=spawn('villager',ex+bsz('base')*TILE/2-TILE, ey+bsz('base')*TILE+TILE,'e');
+  ev1.buildDone=true;
+  let ev2=spawn('villager',ex+bsz('base')*TILE/2+TILE, ey+bsz('base')*TILE+TILE,'e');
+  ev2.buildDone=true;
+  projectiles=[];
+  
+  log('Partie demarree!',true);log('Clic gauche=selectionner, Clic droit=ordonner');log('ZQSD/fleches=camera');
+}
+
+// ── Génération de map déterministe (avec seed) ──
+ // générateur séquencé actif pendant genMapSeeded
+
+function genMapSeeded(seed){
+  _gRng=seededRandom(seed);
+  map=Array.from({length:MH},()=>new Uint8Array(MW));
+  let rx=MW*.62;
+  for(let y=0;y<MH;y++){rx+=(rng()-.5)*2;rx=Math.max(MW*.5,Math.min(MW*.75,rx));for(let x=Math.floor(rx);x<Math.floor(rx)+3;x++) if(x<MW)map[y][x]=T_WATER;}
+  for(let i=0;i<18;i++){let cx=ri(MW),cy=ri(MH),r=3+ri(5);for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) if(dx*dx+dy*dy<=r*r&&inM(cx+dx,cy+dy)&&map[cy+dy][cx+dx]===T_GRASS&&rng()<.75)map[cy+dy][cx+dx]=T_FOREST;}
+  for(let i=0;i<7;i++) patchSeeded(T_GOLD);
+  for(let i=0;i<6;i++) patchSeeded(T_STONE);
+}
+function patchSeeded(t){
+  let cx=ri(MW),cy=ri(MH);
+  for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++)
+    if(dx*dx+dy*dy<=5&&inM(cx+dx,cy+dy)&&map[cy+dy][cx+dx]===T_GRASS)map[cy+dy][cx+dx]=t;
+}
+
+function initGameMulti(cfg,seed,playerIndex,nbPlayers){
+  cfg=cfg||{startRes:{g:200,w:100}}; nbPlayers=nbPlayers||2;
+  genMapSeeded(seed);
+  entities=[];sel=[];frame=0;gstate='playing';
+  placeMode=null;pendingRally=null;eid=1;
+  document.body.classList.remove('placing');
+  res={g:cfg.startRes.g,w:cfg.startRes.w,s:cfg.startRes.s||0,sc:0,popMax:10};
+  buildLimits=cfg.buildLimits||{barracks:5,tower:10,mine:10,farm:10,warehouse:10};
+  mineRates=cfg.mineRates||{gold:5,stone:5};
+  labConfig=cfg.labConfig||{sciRate:1,maxWorkers:3};
+  document.getElementById('log-panel').innerHTML='<h3>JOURNAL</h3>';
+  _lg=-1;_lw=-1;_lp=-1;_ls=-1;_lsc=-1;_lfarms=-1;_lagri=-1;_lpopmax=-1;
+  res.popMax=10; techLevels={fortification:0,engineering:0,extraction:0,agriculture:0}; activeResearch=null;
+
+  const SPAWNS=[[3,3],[MW-7,MH-7],[MW-7,3],[3,MH-7],
+    [3,Math.floor(MH/2)-3],[MW-7,Math.floor(MH/2)-3],
+    [Math.floor(MW/2)-3,3],[Math.floor(MW/2)-3,MH-7],
+    [Math.floor(MW/4),Math.floor(MH/4)],[Math.floor(MW*3/4),Math.floor(MH*3/4)]];
+
+  let myX=0,myY=0;
+  for(let i=0;i<nbPlayers;i++){
+    let [tx,ty]=SPAWNS[i]||SPAWNS[0];
+    let wx=tx*TILE,wy=ty*TILE,team='p'+i;
+    clearZone(tx,ty,5);
+    let cx=MW/2,cy2=MH/2,dx=Math.sign(cx-tx)||1,dy2=Math.sign(cy2-ty)||1;
+    let base=spawn('base',wx,wy,team);
+    base.buildDone=true;base.rallyX=wx+bsz('base')*TILE/2;base.rallyY=wy+bsz('base')*TILE+TILE;
+    spawn('villager',wx+dx*4*TILE,wy+dy2*2*TILE,team);
+    spawn('villager',wx+dx*5*TILE,wy+dy2*2*TILE,team);
+    if(i===playerIndex){myX=wx;myY=wy;}
+  }
+  cam={x:myX-(canvasW||canvas.width)/2+48,y:myY-(canvasH||canvas.height)/2+48};
+  projectiles=[];
+  let col=PLAYER_COLORS[playerIndex%PLAYER_COLORS.length];
+  log('Multi: P'+(playerIndex+1)+' ('+col.label+') — '+nbPlayers+' joueurs',true);
+  log('Clic gauche=sélectionner, Clic droit=ordonner');
+  if(window._pingInterval)clearInterval(window._pingInterval);
+  window._pingInterval=setInterval(()=>{if(!loopRunning){clearInterval(window._pingInterval);return;}sendToPeers({type:'ping'});},5000);
+}
+function d2(a,b){return(a.x-b.x)**2+(a.y-b.y)**2;}
+// Trouve le point le plus proche sur le contour d'un batiment
+function nearestBuildingEdge(unit, building){
+  let sz=bsz(building.type)*TILE;
+  let margin=4;
+  // Clamp le point de l'unite sur le contour du batiment
+  let cx=Math.max(building.x-margin, Math.min(building.x+sz+margin, unit.x));
+  let cy=Math.max(building.y-margin, Math.min(building.y+sz+margin, unit.y));
+  // Si l'unite est a l'interieur, la ramener sur le bord le plus proche
+  if(cx>building.x-margin&&cx<building.x+sz+margin&&cy>building.y-margin&&cy<building.y+sz+margin){
+    let dLeft  = unit.x-(building.x-margin);
+    let dRight = (building.x+sz+margin)-unit.x;
+    let dTop   = unit.y-(building.y-margin);
+    let dBot   = (building.y+sz+margin)-unit.y;
+    let minD   = Math.min(dLeft,dRight,dTop,dBot);
+    if(minD===dLeft)  cx=building.x-margin;
+    else if(minD===dRight) cx=building.x+sz+margin;
+    else if(minD===dTop)   cy=building.y-margin;
+    else                   cy=building.y+sz+margin;
+  }
+  return{x:cx,y:cy};
+}
+
+function collidesBuilding(x,y,self){
+  for(let b of entities){
+    if(!isBuilding(b)||!b.buildDone||b===self) continue;
+    // Villageois en construction : ignore uniquement SON chantier
+    if(self&&self.type==='villager'&&self.task?.siteId===b.id&&
+       (self.state==='build'||self.state==='demolish')) continue;
+    // Villageois en collecte/retour : ignore uniquement la base et l'entrepôt alliés
+    if(self&&self.type==='villager'&&self.team===b.team&&
+       (self.state==='gather_gold'||self.state==='gather_wood'||
+        self.state==='gather_stone'||self.state==='return')&&
+       (b.type==='base'||b.type==='warehouse')) continue;
+    let sz=bsz(b.type)*TILE;
+    let margin=4;
+    if(x>b.x-margin&&x<b.x+sz+margin&&y>b.y-margin&&y<b.y+sz+margin) return true;
+  }
+  return false;
+}
+
+function collidesUnit(x,y,self){
+  for(let u of entities){
+    if(!isUnit(u)||u===self) continue;
+    let dx=u.x-x,dy=u.y-y;
+    if(dx*dx+dy*dy<TILE*TILE) return true; // rayon = 1 tile
+  }
+  return false;
+}
+
+
+// ── A* Pathfinding ──────────────────────────────────────────
+// Retourne un tableau de waypoints [{x,y}] en pixels depuis (sx,sy) vers (tx,ty)
+// en évitant eau et bâtiments (sauf ceux que self peut ignorer)
+function findPath(sx,sy,tx,ty,self,avoidUnits){
+  let gsx=Math.floor(sx/TILE), gsy=Math.floor(sy/TILE);
+  let gtx=Math.floor(tx/TILE), gty=Math.floor(ty/TILE);
+  if(gsx===gtx&&gsy===gty) return [];
+
+  // Collision stricte pour le pathfinding : jamais traverser un bâtiment solide,
+  // même si l'unité l'ignore normalement en mouvement (ex: villageois retour/base)
+  function collidsBuildingStrict(x,y){
+    for(let b of entities){
+      if(!isBuilding(b)||!b.buildDone||b===self) continue;
+      // Seule exception : villageois qui construit/démolit SON chantier
+      if(self&&self.type==='villager'&&self.task?.siteId===b.id&&
+         (self.state==='build'||self.state==='demolish')) continue;
+      let sz=bsz(b.type)*TILE, margin=4;
+      if(x>b.x-margin&&x<b.x+sz+margin&&y>b.y-margin&&y<b.y+sz+margin) return true;
+    }
+    return false;
+  }
+
+  // Vérifier si une tile est walkable
+  function walkable(gx,gy){
+    if(!inM(gx,gy)) return false;
+    let px=gx*TILE+TILE/2, py=gy*TILE+TILE/2;
+    if(collidsBuildingStrict(px,py)) return false;
+    if(avoidUnits){
+      // On n'évite que les unités ennemies totalement immobiles (idle) et distantes
+      // Les alliés et unités en mouvement sont gérés par la séparation douce dans toward()
+      for(let u of entities){
+        if(!isUnit(u)||u===self) continue;
+        if(self&&u.team===self.team) continue; // jamais éviter les alliés dans le A*
+        if(u.state!=='idle') continue; // seulement les ennemis statiques
+        let ddx=u.x-px,ddy=u.y-py;
+        if(ddx*ddx+ddy*ddy<TILE*TILE) return false;
+      }
+    }
+    return true;
+  }
+
+  // Si la destination n'est pas walkable, chercher la tile walkable la plus proche
+  if(!walkable(gtx,gty)){
+    let best=null, bestD=Infinity;
+    for(let dy=-3;dy<=3;dy++) for(let dx=-3;dx<=3;dx++){
+      let nx=gtx+dx, ny=gty+dy;
+      if(walkable(nx,ny)){
+        let d=(nx-gtx)**2+(ny-gty)**2;
+        if(d<bestD){bestD=d;best={x:nx,y:ny};}
+      }
+    }
+    if(best){gtx=best.x;gty=best.y;} else return [];
+  }
+
+  let open=[];
+  let closed=new Set();
+  let gScore={}, fScore={}, parent={};
+  let key=(x,y)=>x*1024+y;
+
+  gScore[key(gsx,gsy)]=0;
+  fScore[key(gsx,gsy)]=Math.abs(gtx-gsx)+Math.abs(gty-gsy);
+  open.push({x:gsx,y:gsy,f:fScore[key(gsx,gsy)]});
+
+  // Insertion triée (évite sort() entier à chaque itération)
+  function openInsert(node){
+    let i=open.length;
+    while(i>0&&open[i-1].f>node.f) i--;
+    open.splice(i,0,node);
+  }
+
+  let maxIter=400;
+  while(open.length>0&&maxIter-->0){
+    let cur=open.shift();
+    let ck=key(cur.x,cur.y);
+
+    if(cur.x===gtx&&cur.y===gty){
+      // Reconstruire le chemin sans split de string
+      let path=[];
+      let nk=ck;
+      while(parent[nk]!==undefined){
+        let pk=parent[nk];
+        let px=Math.floor(nk/1024), py=nk%1024;
+        path.unshift({x:px*TILE+TILE/2, y:py*TILE+TILE/2});
+        nk=pk;
+      }
+      // Simplifier le chemin (garder seulement les changements de direction)
+      let simplified=[];
+      for(let i=0;i<path.length;i++){
+        if(i===0||i===path.length-1) {simplified.push(path[i]);continue;}
+        let dx1=path[i].x-path[i-1].x, dy1=path[i].y-path[i-1].y;
+        let dx2=path[i+1].x-path[i].x, dy2=path[i+1].y-path[i].y;
+        if(dx1!==dx2||dy1!==dy2) simplified.push(path[i]);
+      }
+      simplified.push({x:tx,y:ty});
+      return simplified;
+    }
+
+    closed.add(ck);
+    // 8 directions
+    for(let[ddx,ddy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){
+      let nx=cur.x+ddx, ny=cur.y+ddy;
+      let nk=key(nx,ny);
+      if(closed.has(nk)) continue;
+      if(!walkable(nx,ny)) continue;
+      // Pénaliser les diagonales
+      let cost=(ddx!==0&&ddy!==0)?1.414:1;
+      let ng=(gScore[ck]||0)+cost;
+      if(gScore[nk]===undefined||ng<gScore[nk]){
+        parent[nk]=ck;
+        gScore[nk]=ng;
+        fScore[nk]=ng+Math.abs(gtx-nx)+Math.abs(gty-ny);
+        openInsert({x:nx,y:ny,f:fScore[nk]});
+      }
+    }
+  }
+  return []; // Pas de chemin
+}
+// ─────────────────────────────────────────────────────────────
+
+function toward(e,tx,ty,s){
+  // Si la destination est dans un bâtiment → rediriger vers le bord le plus proche
+  for(let b of entities){
+    if(!isBuilding(b)||!b.buildDone) continue;
+    // Respecter les mêmes exceptions que collidesBuilding
+    if(e.type==='villager'&&e.task?.siteId===b.id&&(e.state==='build'||e.state==='demolish')) continue;
+    if(e.type==='villager'&&e.team===b.team&&
+       (e.state==='gather_gold'||e.state==='gather_wood'||e.state==='gather_stone'||e.state==='return')&&
+       (b.type==='base'||b.type==='warehouse')) continue;
+    let sz=bsz(b.type)*TILE, margin=4;
+    if(tx>b.x-margin&&tx<b.x+sz+margin&&ty>b.y-margin&&ty<b.y+sz+margin){
+      // Destination dans ce bâtiment → point le plus proche sur son bord externe
+      let edge=nearestBuildingEdge({x:tx,y:ty},b);
+      tx=edge.x; ty=edge.y;
+      break;
+    }
+  }
+
+  let dx=tx-e.x,dy=ty-e.y,dist=Math.sqrt(dx*dx+dy*dy);
+
+  // Si place occupée par une unité et qu'on est proche → rediriger vers case libre
+  if(dist < TILE*1.5 && collidesUnit(tx,ty,e) && !collidesBuilding(tx,ty,e)){
+    // Chercher la case libre la plus proche
+    for(let r=TILE;r<=TILE*4;r+=TILE){
+      for(let a=0;a<8;a++){
+        let angle=a*Math.PI/4;
+        let fx=tx+Math.cos(angle)*r;
+        let fy=ty+Math.sin(angle)*r;
+        if(!collidesUnit(fx,fy,e)&&!collidesBuilding(fx,fy,e)){
+          // Marcher vers ce point libre (pas de téléportation)
+          let ddx=fx-e.x, ddy=fy-e.y, ddist=Math.sqrt(ddx*ddx+ddy*ddy);
+          if(ddist<s){ e.x=fx; e.y=fy; e._path=null; return true; }
+          e.x+=ddx/ddist*s; e.y+=ddy/ddist*s;
+          return false;
+        }
+      }
+    }
+    // Aucune place → rester
+    e._path=null; return true;
+  }
+
+  if(dist<s){
+    if(!collidesBuilding(tx,ty,e) && !collidesUnit(tx,ty,e)){
+      e.x=tx; e.y=ty; e._path=null; return true;
+    }
+    e._path=null; return true;
+  }
+  let nx=dx/dist,ny=dy/dist;
+  let ex2=e.x+nx*s,ey2=e.y+ny*s;
+
+  // Eau : pas de hitbox — juste ralentir (vitesse réduite de moitié)
+  if(tAt(ex2,ey2)===T_WATER){
+    ex2=e.x+nx*s*0.5; ey2=e.y+ny*s*0.5;
+  }
+
+  // Bâtiment devant → A*
+  if(collidesBuilding(ex2,ey2,e)){
+    if(!e._path||Math.abs(e._pathDest?.x-tx)>TILE||Math.abs(e._pathDest?.y-ty)>TILE){
+      e._path=findPath(e.x,e.y,tx,ty,e,false);
+      e._pathDest={x:tx,y:ty};
+      e._pathIdx=0;
+    }
+    if(e._path&&e._path.length>0&&e._pathIdx<e._path.length){
+      let wp=e._path[e._pathIdx];
+      let wdx=wp.x-e.x,wdy=wp.y-e.y;
+      let wdist=Math.sqrt(wdx*wdx+wdy*wdy);
+      if(wdist<s+2){e._pathIdx++;}
+      else{let wnx=wdx/wdist,wny=wdy/wdist;ex2=e.x+wnx*s;ey2=e.y+wny*s;}
+    } else {
+      ex2=e.x;ey2=e.y;
+    }
+  } else {
+    e._path=null;e._pathDest=null;e._pathIdx=0;
+  }
+
+  // Unité bloquante → contournement
+  if(collidesUnit(ex2,ey2,e)){
+    // Scan radial : bâtiment dans un rayon de 3 tiles autour de l'unité (toutes directions)
+    let nearBuilding=false;
+    outer: for(let b of entities){
+      if(!isBuilding(b)||!b.buildDone) continue;
+      let sz=bsz(b.type)*TILE, margin=TILE*3;
+      if(e.x>b.x-margin&&e.x<b.x+sz+margin&&e.y>b.y-margin&&e.y<b.y+sz+margin){
+        nearBuilding=true; break outer;
+      }
+    }
+    if(nearBuilding){
+      // A* en évitant bâtiments ET unités — recalcul si destination changée ou chemin périmé
+      if(!e._pathU||Math.abs(e._pathUDest?.x-tx)>TILE||Math.abs(e._pathUDest?.y-ty)>TILE||(e._pathUAge||0)>30){
+        e._pathU=findPath(e.x,e.y,tx,ty,e,true);
+        e._pathUDest={x:tx,y:ty};
+        e._pathUIdx=0;
+        e._pathUAge=0;
+      }
+      e._pathUAge=(e._pathUAge||0)+1;
+      if(e._pathU&&e._pathU.length>0&&e._pathUIdx<e._pathU.length){
+        let wp=e._pathU[e._pathUIdx];
+        let wdx=wp.x-e.x,wdy=wp.y-e.y,wdist=Math.sqrt(wdx*wdx+wdy*wdy);
+        if(wdist<s+2){e._pathUIdx++;}
+        else{let wnx=wdx/wdist,wny=wdy/wdist;ex2=e.x+wnx*s;ey2=e.y+wny*s;}
+      } else {
+        // Chemin vide ou épuisé → forcer recalcul au prochain frame
+        e._pathU=null; e._pathUAge=31;
+        ex2=e.x;ey2=e.y;
+      }
+    } else {
+      // Plein champ : glissement tangentiel autour du bloqueur
+      let blocker=null,bDist=Infinity;
+      for(let u of entities){
+        if(!isUnit(u)||u===e) continue;
+        let ddx=u.x-ex2,ddy=u.y-ey2,dd=ddx*ddx+ddy*ddy;
+        if(dd<TILE*TILE&&dd<bDist){bDist=dd;blocker=u;}
+      }
+      if(blocker){
+        // Vecteur bloqueur→soi (direction de poussée)
+        let pushX=e.x-blocker.x,pushY=e.y-blocker.y;
+        let pd=Math.sqrt(pushX*pushX+pushY*pushY)||1;
+        pushX/=pd;pushY/=pd;
+        // Tangentes perpendiculaires au vecteur de poussée
+        let t1x=-pushY,t1y=pushX;
+        let t2x=pushY, t2y=-pushX;
+        // Dot avec la direction vers la destination
+        let dot1=t1x*nx+t1y*ny, dot2=t2x*nx+t2y*ny;
+        // Tiebreak déterministe si dot identiques (bloqueur exactement devant)
+        let dirs;
+        if(Math.abs(dot1-dot2)<0.001){
+          // Choisir selon position relative : si bloqueur à gauche → passer à droite
+          let cross=nx*pushY-ny*pushX;
+          dirs=cross>=0?[[t1x,t1y],[t2x,t2y]]:[[t2x,t2y],[t1x,t1y]];
+        } else {
+          dirs=dot1>=dot2?[[t1x,t1y],[t2x,t2y]]:[[t2x,t2y],[t1x,t1y]];
+        }
+        // Step = TILE pour dépasser le rayon de collision, puis revenir à s pour le mouvement réel
+        let moved=false;
+        for(let[tx2,ty2] of dirs){
+          // Tester à TILE de distance (sortie de collision)
+          let cx=e.x+tx2*TILE,cy=e.y+ty2*TILE;
+          if(!collidesUnit(cx,cy,e)&&!collidesBuilding(cx,cy,e)){
+            // Avancer de s dans cette direction
+            ex2=e.x+tx2*s; ey2=e.y+ty2*s;
+            moved=true; break;
+          }
+        }
+        if(!moved){
+          // Dernier recours : reculer légèrement du bloqueur
+          ex2=e.x+pushX*s; ey2=e.y+pushY*s;
+          if(collidesBuilding(ex2,ey2,e)){ex2=e.x;ey2=e.y;}
+        }
+      } else {
+        ex2=e.x;ey2=e.y;
+      }
+    }
+  } else {
+    // Plus de collision — invalider le cache A* unités
+    e._pathU=null;e._pathUDest=null;e._pathUIdx=0;e._pathUAge=0;
+  }
+
+  // Limiter les unites aux bords de la carte
+  e.x=Math.max(4,Math.min(MW*TILE-4,ex2));
+  e.y=Math.max(4,Math.min(MH*TILE-4,ey2));
+  return false;
+}
+function nearTile(ex,ey,tt){
+  let best=Infinity,bx=0,by=0;
+  for(let y=0;y<MH;y++) for(let x=0;x<MW;x++) if(map[y][x]===tt){let d=(x*TILE-ex)**2+(y*TILE-ey)**2;if(d<best){best=d;bx=x*TILE+TILE/2;by=y*TILE+TILE/2;}}
+  return{x:bx,y:by};
+}
+
+function tick(){
+  frame++;
+  // IA ennemie: seulement en mode solo
+  if(!multiMode){
+    let eaiIntervals={easy:1200,normal:600,hard:300,brutal:60};
+    let eaiInterval=Math.max(1,Math.round((eaiIntervals[_aiDiff]||600)/gameSpeedMult));
+    if(frame%eaiInterval===0) eAI();
+  }
+  for(let i=entities.length-1;i>=0;i--){
+    let e=entities[i];
+    if(e.hp<=0){if(sel.includes(e))sel=sel.filter(s=>s!==e);entities.splice(i,1);continue;}
+    if(isBuilding(e)){tickB(e);continue;}
+    e.cooldown=Math.max(0,e.cooldown-1);
+    if(e.state==='move'){if(!e.target||e.target.x===undefined){e.state='idle';e.target=null;continue;}if(toward(e,e.target.x,e.target.y,SPD[e.type]||1)){e.state='idle';e.target=null;}}
+    else if(e.state==='attack'){
+      if(!e.target){e.state='idle';continue;}
+      let t=entities.find(x=>x.id===e.target.id);
+      if(!t||t.hp<=0){e.state='idle';e.target=null;continue;}
+      let dist=Math.sqrt(d2(e,t));
+      if(dist>(RNG[e.type]||30)+10) toward(e,t.x,t.y,SPD[e.type]||1);
+      else if(e.cooldown===0){
+        // Unites a distance: creer un projectile
+        if(RNG[e.type]){
+          projectiles.push({x:e.x,y:e.y,tx:t.x,ty:t.y,targetId:t.id,dmg:ATK[e.type]||3,speed:5,
+            color:isHumanTeam(e.team)?teamColor(e.team).unit+'aa':'#ff8844',
+            type:e.type==='archer'||e.type==='earcher'?'arrow':'bolt',done:false});
+        } else {
+          t.hp-=ATK[e.type]||3;
+        }
+        e.cooldown=ASPD[e.type]||60;
+      }
+    }
+    else if(e.state==='gather_gold'||e.state==='gather_wood'||e.state==='gather_stone'){
+      let tt=e.state==='gather_gold'?T_GOLD:e.state==='gather_stone'?T_STONE:T_FOREST;
+      if(!e.task){e.task=nearTile(e.x,e.y,tt);}
+      let dist=Math.sqrt((e.task.x-e.x)**2+(e.task.y-e.y)**2);
+      if(dist>22) toward(e,e.task.x,e.task.y,SPD[e.type]||1);
+      else{e.progress++;if(e.progress>=60){e.progress=0;let k=e.state==='gather_gold'?'g':e.state==='gather_stone'?'s':'w';e.carry[k]+=5;if(e.carry[k]>=20){e._gt=e.state;e.state='return';}}}
+    }
+    else if(e.state==='return'){
+      let depots=entities.filter(b=>(b.type==='base'||b.type==='warehouse')&&b.team===e.team&&b.buildDone);
+      if(!depots.length){e.state='idle';continue;}
+      let depot=depots.reduce((best,d)=>d2(e,d)<d2(e,best)?d:best,depots[0]);
+      let edge=nearestBuildingEdge(e,depot);
+      if(toward(e,edge.x,edge.y,SPD[e.type]||1)){
+        if(e.team===myT()){res.g+=e.carry.g;res.w+=e.carry.w;res.s+=e.carry.s;}
+        else if(e.team==='e'){aiCollect(e.carry);}
+        e.carry={g:0,w:0,s:0};if(e._gt){e.state=e._gt;e.task=null;}else e.state='idle';
+      }
+    }
+    else if(e.state==='work_lab'){
+      let lab=entities.find(b=>b.id===e.task?.labId);
+      if(!lab||!lab.buildDone){e.state='idle';e.task=null;continue;}
+      // Se deplacer vers le lab puis entrer dedans
+      let edge=nearestBuildingEdge(e,lab);
+      let dist=Math.sqrt((edge.x-e.x)**2+(edge.y-e.y)**2);
+      if(dist>12) toward(e,edge.x,edge.y,SPD[e.type]||1);
+      // Une fois arrive, se placer "dans" le batiment (invisible)
+    }
+    else if(e.state==='build'){
+      let site=entities.find(s=>s.id===e.task?.siteId);
+      if(!site||site.buildDone){e.state='idle';e.task=null;continue;}
+      let edge=nearestBuildingEdge(e,site);
+      let distToEdge=Math.sqrt((edge.x-e.x)**2+(edge.y-e.y)**2);
+      if(distToEdge>TILE){
+        // Continuer à marcher jusqu'au bord — recalcul à chaque frame
+        toward(e,edge.x,edge.y,SPD[e.type]||1);
+      } else {
+        // Vraiment à portée : construire
+        e.progress=(e.progress||0)+1;
+      }
+    }
+    else if(e.state==='repair'){
+      let site=entities.find(s=>s.id===e.task?.siteId);
+      if(!site||!site.repairing){e.state='idle';e.task=null;continue;}
+      let edge=nearestBuildingEdge(e,site);
+      if(Math.sqrt((edge.x-e.x)**2+(edge.y-e.y)**2)>16) toward(e,edge.x,edge.y,SPD[e.type]||1);
+      else{
+        e.progress=(e.progress||0)+1;
+        site.repairProgress=(site.repairProgress||0)+1;
+        if(site.repairProgress>=(site.repairTime||120)){
+          finishRepair(site);
+          e.state='idle';e.task=null;
+        }
+      }
+    }
+    else if(e.state==='demolish'){
+      let site=entities.find(s=>s.id===e.task?.siteId);
+      if(!site||!site.demolishing){e.state='idle';e.task=null;continue;}
+      let edge=nearestBuildingEdge(e,site);
+      if(Math.sqrt((edge.x-e.x)**2+(edge.y-e.y)**2)>16) toward(e,edge.x,edge.y,SPD[e.type]||1);
+      else {
+        // Au travail : animation marteau + progression
+        e.progress=(e.progress||0)+1;
+        site.demolishProgress=(site.demolishProgress||0)+1;
+        if(site.demolishProgress>=(site.demolishTime||180)){
+          finishDemolish(site);
+          e.state='idle';e.task=null;
+        }
+      }
+    }
+    else if(e.state==='idle'&&e.team==='e'){
+      let p=entities.find(x=>(x.team==='p'||x.team==='p2')&&d2(e,x)<100*100);
+      if(p){e.state='attack';e.target=p;}
+    }
+    // ── Détection automatique ennemis pour unités militaires ──
+    // Seulement si idle — les ordres de déplacement sont prioritaires
+    if(isUnit(e)&&e.type!=='villager'&&e.state==='idle'){
+      const AGGRO=TILE*5;
+      let bestTarget=null, bestDist=AGGRO*AGGRO;
+      for(let t of entities){
+        if(t===e||t.hp<=0) continue;
+        let isEnemy=isHumanTeam(e.team)?(t.team==='e'):isHumanTeam(t.team);
+        if(!isEnemy) continue;
+        if(isBuilding(t)&&!t.buildDone) continue;
+        let dd=d2(e,t);
+        if(dd<bestDist){bestDist=dd;bestTarget=t;}
+      }
+      if(bestTarget){e.state='attack';e.target=bestTarget;}
+    }
+  }
+  // Update projectiles
+  for(let i=projectiles.length-1;i>=0;i--){
+    let p=projectiles[i];
+    let dx=p.tx-p.x,dy=p.ty-p.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<p.speed||p.done){
+      // Hit: apply damage
+      let t=entities.find(e=>e.id===p.targetId);
+      if(t&&t.hp>0) t.hp-=p.dmg;
+      projectiles.splice(i,1);
+    } else {
+      p.x+=dx/dist*p.speed;
+      p.y+=dy/dist*p.speed;
+    }
+  }
+  if(gstate==='playing'){
+    if(multiMode){
+      let myTeam=myT();
+      if(!entities.find(e=>e.type==='base'&&e.team===myTeam&&e.hp>0)) gstate='lose';
+      let otherBases=entities.filter(e=>e.type==='base'&&e.team!==myTeam&&isHumanTeam(e.team)&&e.hp>0);
+      if(otherBases.length===0&&gstate==='playing') gstate='win';
+    } else {
+      if(!entities.find(e=>e.type==='base'&&e.team==='p')) gstate='lose';
+      if(!entities.find(e=>e.type==='base'&&e.team==='e')) gstate='win';
+    }
+  }
+}
+// Research effect helpers
+function getBuildingLevelStr(type){
+  // Le niveau de base est 1. Chaque recherche ajoute 1.
+  // On prend le niveau le plus pertinent pour ce batiment (+1 pour afficher niv1 par defaut)
+  let lv=1+(techLevels.fortification||0);
+  if(type==='mine') lv=Math.max(lv, 1+(techLevels.extraction||0));
+  if(type==='farm') lv=Math.max(lv, 1+(techLevels.agriculture||0));
+  return 'niv '+lv;
+}
+function resBonusHP(type){
+  let lv=techLevels.fortification;
+  if(lv===0) return 1;
+  return 1+lv*0.25; // +25% per level
+}
+function resBonusBuildTime(type){
+  let lv=techLevels.engineering;
+  return Math.max(0.4, 1-lv*0.20); // -20% per level
+}
+function resBonusMine(){
+  let lv=techLevels.extraction;
+  return 1+lv*0.50; // +50% per level
+}
+
+function tickB(e){
+  if(!e.buildDone){
+    // Ne compter que les bâtisseurs qui sont réellement à proximité du chantier
+    let builders=entities.filter(u=>{
+      if(u.state!=='build'||u.task?.siteId!==e.id) return false;
+      let edge=nearestBuildingEdge(u,e);
+      let dist=Math.sqrt((edge.x-u.x)**2+(edge.y-u.y)**2);
+      return dist<=TILE;
+    });
+    if(builders.length>0){let engBonus=1/Math.max(0.2,resBonusBuildTime(e.type));
+      e.buildProgress+=builders.length*engBonus;e.hp=Math.max(1,Math.floor(e.maxHp*e.buildProgress/(BTIME[e.type]||200)));
+      if(e.buildProgress>=(BTIME[e.type]||200)){e.buildDone=true;
+        e.maxHp=Math.round((BMHP[e.type]||200)*resBonusHP(e.type));
+        e.hp=e.maxHp;
+        if(e.type==='farm'){_lfarms=-1;_lagri=-1;}
+        builders.forEach(v=>{
+          v.state='idle';v.task=null;v.progress=0;
+          // Rester sur place — pas de téléportation
+        });
+        log(NAMES[e.type]+' construit!',true);}}
+    return;
+  }
+  if(e.training){e.trainTimer++;if(e.trainTimer>=e.training.t){
+    let eTeam=e.team;
+    let pop=entities.filter(u=>isUnit(u)&&u.team===eTeam).length;
+    let popLimit=(eTeam===myT()||multiMode)?res.popMax:aiRes.popMax;
+    if(pop<popLimit){
+        let sz=bsz(e.type)*TILE;
+        let cx=e.x+sz/2, cy=e.y+sz+TILE;
+        // Chercher une position libre autour du bâtiment
+        let spawnX=cx, spawnY=cy;
+        let found=false;
+        // Essayer plusieurs positions en arc devant le bâtiment
+        let offsets=[
+          [0,0],[TILE,0],[-TILE,0],[0,TILE],[TILE,TILE],[-TILE,TILE],
+          [TILE*2,0],[-TILE*2,0],[0,TILE*2],[TILE,TILE*2],[-TILE,TILE*2]
+        ];
+        for(let[ox,oy] of offsets){
+          let tx=cx+ox, ty=cy+oy;
+          // Vérifier unités, bâtiments et eau
+          let hitUnit=entities.some(u=>isUnit(u)&&u!==e&&Math.sqrt((u.x-tx)**2+(u.y-ty)**2)<TILE);
+          let hitBuild=collidesBuilding(tx,ty,null);
+          if(!hitUnit&&!hitBuild){spawnX=tx;spawnY=ty;found=true;break;}
+        }
+        let u=spawn(e.training.type,spawnX,spawnY,eTeam);
+        u.buildDone=true;
+        // Aller au point de ralliement exact — toward() gère si place occupée
+        let dx=e.rallyX-spawnX, dy=e.rallyY-spawnY;
+        if(Math.sqrt(dx*dx+dy*dy)>TILE*1.5){
+          u.state='move'; u.target={x:e.rallyX, y:e.rallyY};
+        }
+      } else log('Population max!',true);e.training=null;e.trainTimer=0;}}
+  // popMax recalcule dans updateUI
+  // Mine: production passive selon le minerai en dessous
+  if(e.type==='mine'&&isHumanTeam(e.team)&&e.buildDone&&e.mineResource){
+    if(e.mineActive===undefined) e.mineActive=true;
+    if(!e.mineActive) return;
+    if(!e.mineTimer) e.mineTimer=0;
+    e.mineTimer++;
+    // Seul le joueur local accumule ses ressources localement
+    if(e.team===myT()){
+      let isGold=e.mineResource===T_GOLD;
+      let rate=isGold?mineRates.gold:mineRates.stone;
+      let mult=e.mineralCount||1;
+      if(rate>0&&e.mineTimer%Math.round(3600/rate)===0){
+        let finalMult=mult*resBonusMine();
+        if(isGold) res.g+=finalMult; else res.s+=finalMult;
+      }
+    } else if(e.team==='e'){
+      let isGold=e.mineResource===T_GOLD;
+      if(e.mineTimer%120===0){ if(isGold) aiRes.g+=e.mineralCount||1; else aiRes.s+=e.mineralCount||1; }
+    }
+    if(e.mineTimer>=7200) e.mineTimer=0;
+  }
+  if(e.type==='lab'&&isHumanTeam(e.team)&&e.buildDone){
+    if(!e.labTimer) e.labTimer=0;
+    let workers=entities.filter(u=>u.type==='villager'&&u.team===e.team&&u.state==='work_lab'&&u.task?.labId===e.id).length;
+    if(e.team===myT()){
+      if(workers>0){
+        e.labTimer++;
+        if(e.labTimer%Math.round(600/workers)===0) res.sc+=labConfig.sciRate||1;
+      } else { e.labTimer=0; }
+      if(activeResearch){
+        activeResearch.progress+=workers>0?workers:0;
+        if(activeResearch.progress>=activeResearch.totalTime){
+          techLevels[activeResearch.key]++;
+          let rkey=activeResearch.key;
+          log('Recherche '+RESEARCH_TREE[rkey].name+' niv.'+techLevels[rkey]+' terminee!',true);
+          if(rkey==='fortification'){
+            entities.filter(b=>isBuilding(b)&&b.team===myT()&&b.buildDone).forEach(b=>{
+              b.maxHp=Math.round((BMHP[b.type]||200)*resBonusHP(b.type));
+              b.hp=Math.min(b.hp,b.maxHp);
+            });
+          }
+          activeResearch=null; _lsid='';
+        }
+      }
+    }
+  }
+  // Entrepot: pas de production, juste un depot de ressources (logique dans 'return')
+  // Tour: attaque automatique les ennemis a portee
+  if(e.type==='tower'&&isHumanTeam(e.team)&&e.buildDone){
+    if(!e.cooldown) e.cooldown=0;
+    e.cooldown=Math.max(0,e.cooldown-1);
+    if(e.cooldown===0){
+      let cx=e.x+bsz('tower')*TILE/2, cy=e.y+bsz('tower')*TILE/2;
+      // Attaque les ennemis de cette équipe
+      let target=entities.find(en=>en.team!==e.team&&en.hp>0&&Math.sqrt((en.x-cx)**2+(en.y-cy)**2)<TOWER_RANGE);
+      if(target){
+        projectiles.push({x:cx,y:cy,tx:target.x,ty:target.y,targetId:target.id,dmg:5,speed:6,
+          color:'#ffcc00',type:'bolt',done:false});
+        e.cooldown=45;
+      }
+    }
+  }
+}
+// ═══════════════════════════════════════════════
+// IA ENNEMIE — Se comporte comme un vrai joueur
+// Gère ses propres ressources, villageois, casernes
+// ════════════════════════════════════════════════
+
+// Ressources propres au bot
+let aiRes = {g:200, w:100, s:0, sc:0, popMax:10};
+let _aiAttackTimer = 0;
+let _aiNextAttack = 0;
+
+function eAI(){
+  let eb = entities.find(b=>b.type==='base'&&b.team==='e'&&b.buildDone);
+  if(!eb) return;
+
+  let pb      = entities.find(b=>b.type==='base'&&isHumanTeam(b.team)&&b.hp>0);
+  let eAll    = entities.filter(u=>isUnit(u)&&u.team==='e');
+  let eVills  = eAll.filter(u=>u.type==='villager');
+  let eSol    = eAll.filter(u=>u.type!=='villager');
+  let eBars   = entities.filter(b=>b.type==='barracks' &&b.team==='e'&&b.buildDone);
+  let eFarms  = entities.filter(b=>b.type==='farm'     &&b.team==='e'&&b.buildDone);
+  let eTowers = entities.filter(b=>b.type==='tower'    &&b.team==='e'&&b.buildDone);
+  let eMines  = entities.filter(b=>b.type==='mine'     &&b.team==='e'&&b.buildDone);
+  let eWarehs = entities.filter(b=>b.type==='warehouse'&&b.team==='e'&&b.buildDone);
+  let ePop    = eAll.length;
+  aiRes.popMax = 10 + eFarms.length * 5;
+
+  // Lecture adversaire
+  let pUnits  = entities.filter(u=>isUnit(u)&&isHumanTeam(u.team)&&u.hp>0);
+  let pSol    = pUnits.filter(u=>u.type!=='villager');
+  let pVills  = pUnits.filter(u=>u.type==='villager');
+  let pBldgs  = entities.filter(b=>isBuilding(b)&&isHumanTeam(b.team)&&b.buildDone&&b.hp>0);
+  let pBars   = pBldgs.filter(b=>b.type==='barracks');
+  let pMines  = pBldgs.filter(b=>b.type==='mine');
+  let pFarms  = pBldgs.filter(b=>b.type==='farm');
+  let pTowers = pBldgs.filter(b=>b.type==='tower');
+  let pBase   = pBldgs.find(b=>b.type==='base')||pb;
+  let myStr   = eSol.length*2+eTowers.length*3;
+  let pStr    = pSol.length*2+pTowers.length*3;
+  let ahead   = myStr>pStr;
+
+  // 1. COLLECTE
+  eVills.filter(v=>v.state==='idle').forEach(v=>{
+    let gt=nearTile(v.x,v.y,T_GOLD);
+    let wt=nearTile(v.x,v.y,T_FOREST);
+    let st=nearTile(v.x,v.y,T_STONE);
+    if(gt.x){v.state='gather_gold';v.task=null;v._gt='gather_gold';}
+    else if(wt.x){v.state='gather_wood';v.task=null;v._gt='gather_wood';}
+    else if(st.x){v.state='gather_stone';v.task=null;v._gt='gather_stone';}
+  });
+
+  // 2. VILLAGEOIS
+  let vMax={easy:2,normal:3,hard:4,brutal:5}[_aiDiff]||3;
+  if(eVills.length<vMax&&aiRes.g>=50&&!eb.training&&ePop<aiRes.popMax){
+    eb.training={type:'villager',g:50,t:TCOST.villager.t};
+    eb.trainTimer=0;aiRes.g-=50;
+  }
+
+  // 3. CONSTRUCTION
+  let inProgress=entities.some(b=>b.team==='e'&&!b.buildDone&&isBuilding(b));
+  let freeVill=eVills.find(v=>['idle','gather_gold','gather_wood','gather_stone'].includes(v.state));
+  if(!inProgress&&freeVill){
+    let built=false;
+    if(_aiDiff==='easy'){
+      if(!built&&eBars.length<1&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eMines.length<1&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&ePop>=aiRes.popMax-2&&eFarms.length<3&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+      if(!built&&eTowers.length<1&&aiRes.g>=60&&aiRes.w>=20&&aiRes.s>=40) built=eAI_build('tower',eb,freeVill);
+    } else if(_aiDiff==='normal'){
+      if(!built&&eBars.length<1&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eMines.length<1&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&ePop>=aiRes.popMax-3&&eFarms.length<4&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+      if(!built&&eTowers.length<2&&aiRes.g>=60&&aiRes.w>=20&&aiRes.s>=40) built=eAI_build('tower',eb,freeVill);
+      if(!built&&eBars.length<2&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eMines.length<2&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&ePop>=aiRes.popMax-2&&eFarms.length<6&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+    } else if(_aiDiff==='hard'){
+      if(!built&&eBars.length<1&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eMines.length<1&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&eBars.length<2&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&ePop>=aiRes.popMax-3&&eFarms.length<6&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+      if(!built&&eTowers.length<3&&aiRes.g>=60&&aiRes.w>=20&&aiRes.s>=40) built=eAI_build('tower',eb,freeVill);
+      if(!built&&eMines.length<3&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&ahead&&eBars.length<4&&aiRes.g>=120&&aiRes.w>=80) built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eWarehs.length<1&&aiRes.g>=80&&aiRes.w>=60)   built=eAI_build('warehouse',eb,freeVill);
+      if(!built&&eFarms.length<8&&ePop>=aiRes.popMax-2&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+    } else {
+      // brutal : contre l'adversaire en temps réel
+      let needCounter=pBars.length>eBars.length;
+      if(!built&&eBars.length<1&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eMines.length<1&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&eBars.length<2&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eFarms.length<3&&ePop>=aiRes.popMax-4&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+      if(!built&&eMines.length<2&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&needCounter&&eBars.length<pBars.length+1&&aiRes.g>=120&&aiRes.w>=80) built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eTowers.length<4&&(pStr>4||pTowers.length>0)&&aiRes.g>=60&&aiRes.w>=20&&aiRes.s>=40) built=eAI_build('tower',eb,freeVill);
+      if(!built&&eWarehs.length<1&&aiRes.g>=80&&aiRes.w>=60)   built=eAI_build('warehouse',eb,freeVill);
+      if(!built&&eMines.length<4&&aiRes.g>=80&&aiRes.w>=40)    built=eAI_tryBuildMine(eb,freeVill);
+      if(!built&&eBars.length<6&&aiRes.g>=120&&aiRes.w>=80)    built=eAI_build('barracks',eb,freeVill);
+      if(!built&&eFarms.length<10&&ePop>=aiRes.popMax-2&&aiRes.g>=60&&aiRes.w>=50) built=eAI_build('farm',eb,freeVill);
+    }
+  }
+
+  // 4. SOLDATS
+  let soldMax={easy:6,normal:16,hard:30,brutal:60}[_aiDiff]||16;
+  let archRatio={easy:0,normal:0.2,hard:0.35,brutal:0.45}[_aiDiff]||0.2;
+  eBars.forEach(b=>{
+    if(b.training||eSol.length>=soldMax||ePop>=aiRes.popMax) return;
+    let needArch=eSol.filter(u=>u.type==='earcher').length<eSol.length*archRatio;
+    let unitType=(needArch&&aiRes.g>=60)?'earcher':'esoldier';
+    let cost={esoldier:50,earcher:60}[unitType]||50;
+    if(aiRes.g<cost) return;
+    b.training={type:unitType,g:cost,t:TCOST.soldier.t};
+    b.trainTimer=0;aiRes.g-=cost;
+  });
+
+  // 5. DÉFENSE
+  let defRadius={easy:220,normal:350,hard:480,brutal:700}[_aiDiff]||350;
+  let threats=entities.filter(x=>isHumanTeam(x.team)&&x.hp>0&&Math.sqrt(d2(x,eb))<defRadius);
+  eSol.filter(u=>u.state==='idle').forEach(u=>{
+    let nearest=eAI_nearestEnemy(u);
+    if(nearest&&Math.sqrt(d2(u,nearest))<defRadius){u.state='attack';u.target=nearest;}
+    else eAI_patrol(u,eb);
+  });
+  if((_aiDiff==='hard'||_aiDiff==='brutal')&&threats.length>0){
+    eSol.filter(u=>u.state==='move').forEach(u=>{
+      let t=eAI_nearestEnemy(u);
+      if(t&&Math.sqrt(d2(u,t))<defRadius){u.state='attack';u.target=t;}
+    });
+  }
+
+  // 6. OFFENSIVE
+  _aiAttackTimer++;
+  let baseTimer={easy:99999,normal:1200,hard:450,brutal:150}[_aiDiff]||1200;
+  if(!_aiNextAttack) _aiNextAttack=baseTimer+Math.floor((rng()-0.5)*baseTimer*0.4);
+  let minSol={easy:9999,normal:7,hard:4,brutal:1}[_aiDiff]||7;
+
+  if(_aiAttackTimer>=_aiNextAttack&&eSol.length>=minSol&&pb){
+    let canAttack=false;
+    if(_aiDiff==='easy')        canAttack=false;
+    else if(_aiDiff==='normal') canAttack=myStr>=pStr*0.5;
+    else if(_aiDiff==='hard')   canAttack=myStr>=pStr*0.65||ahead;
+    else                         canAttack=true;
+
+    if(canAttack){
+      let target=pBase;
+      if(_aiDiff==='normal'){
+        let r=rng();
+        if(r<0.4&&pSol.length>0)  target=pSol[ri(pSol.length)];
+        else if(pBars.length>0)    target=pBars[ri(pBars.length)];
+        else target=pBase;
+      } else if(_aiDiff==='hard'){
+        let r=rng();
+        if(r<0.3&&pBars.length>0)        target=pBars.reduce((a,b)=>a.hp<b.hp?a:b);
+        else if(r<0.5&&pMines.length>0)  target=pMines[ri(pMines.length)];
+        else if(r<0.65&&pVills.length>0) target=pVills.reduce((a,b)=>d2(a,eb)<d2(b,eb)?a:b);
+        else if(r<0.8&&pFarms.length>0)  target=pFarms[ri(pFarms.length)];
+        else target=pBase;
+      } else {
+        // brutal : cible la plus prioritaire calculée
+        let scored=[...pBldgs,...pSol,...pVills].filter(x=>x.hp>0).map(x=>({
+          e:x,
+          score:(x.type==='base'?500:x.type==='barracks'?200:x.type==='tower'?150:
+                 x.type==='mine'?120:x.type==='warehouse'?80:x.type==='farm'?60:
+                 x.type!=='villager'?100:40)+(1-x.hp/x.maxHp)*80
+        })).sort((a,b)=>b.score-a.score);
+        target=scored[0]?.e||pBase;
+        // vagues multi-cibles
+        if(scored.length>1){
+          let wave=Math.max(1,Math.floor(eSol.length/Math.min(3,scored.length)));
+          scored.slice(0,3).forEach((sc,i)=>{
+            eSol.slice(i*wave,(i+1)*wave).forEach(u=>{u.state='attack';u.target=sc.e;});
+          });
+        }
+      }
+      let defKeep={easy:0,normal:Math.ceil(eSol.length*0.4),hard:Math.max(1,Math.ceil(eSol.length*0.25)),brutal:0}[_aiDiff]||0;
+      eSol.slice(defKeep).forEach(u=>{u.state='attack';u.target=target;});
+      _aiAttackTimer=0;
+      _aiNextAttack=baseTimer+Math.floor((rng()-0.5)*baseTimer*0.4);
+    } else {
+      _aiNextAttack=_aiDiff==='brutal'?60:Math.floor(baseTimer*0.3);
+      _aiAttackTimer=0;
+    }
+  }
+}
+
+function aiCollect(carry){
+  aiRes.g += carry.g||0;
+  aiRes.w += carry.w||0;
+  aiRes.s += carry.s||0;
+}
+
+function eAI_nearestEnemy(u){
+  let enemies = entities.filter(x=>isHumanTeam(x.team)&&x.hp>0);
+  if(!enemies.length) return null;
+  return enemies.reduce((best,x)=>d2(u,x)<d2(u,best)?x:best, enemies[0]);
+}
+
+function eAI_patrol(u, eb){
+  if(d2(u,eb) > 160*160){
+    u.state='move';
+    u.target={x:eb.x+bsz('base')*TILE/2+(ri(3)-1)*50, y:eb.y+bsz('base')*TILE/2+(ri(3)-1)*50};
+  }
+}
+
+function eAI_build(type, eb, vill){
+  let sz = bsz(type)*TILE;
+  let offsets = [[3,0],[0,3],[3,3],[-2,0],[0,-2],[4,0],[0,4],[5,1],[1,5],[4,4]];
+  for(let [ox,oy] of offsets){
+    let bx=eb.x+ox*TILE, by=eb.y+oy*TILE;
+    let tx=Math.floor(bx/TILE), ty=Math.floor(by/TILE);
+    if(!inM(tx,ty)||map[ty][tx]===T_WATER) continue;
+    let blocked = entities.some(b=>isBuilding(b)&&Math.abs(b.x-bx)<sz+TILE&&Math.abs(b.y-by)<sz+TILE);
+    if(blocked) continue;
+    // Créer le site
+    let site = spawn(type, bx, by, 'e');
+    site.buildDone=false; site.buildProgress=0; site.hp=1;
+    site.maxHp=BMHP[type]||200;
+    site.rallyX=bx+sz/2; site.rallyY=by+sz+TILE;
+    // Déduire le coût
+    let c = BCOST[type]||{g:80,w:60};
+    aiRes.g-=c.g||0; aiRes.w-=c.w||0; aiRes.s-=c.s||0;
+    // Envoyer le villageois construire
+    vill.state='build'; vill.task={siteId:site.id}; vill.progress=0;
+    return true;
+  }
+  return false;
+}
+
+function eAI_tryBuildMine(eb, vill){
+  // Chercher une tuile de minerai proche
+  let bx=eb.x, by=eb.y;
+  for(let dy=-6;dy<=6;dy++) for(let dx=-6;dx<=6;dx++){
+    let tx=Math.floor(bx/TILE)+dx, ty=Math.floor(by/TILE)+dy;
+    if(!inM(tx,ty)) continue;
+    if(map[ty][tx]!==T_GOLD&&map[ty][tx]!==T_STONE) continue;
+    let mx=tx*TILE, my=ty*TILE;
+    let blocked=entities.some(b=>isBuilding(b)&&Math.abs(b.x-mx)<bsz('mine')*TILE+TILE&&Math.abs(b.y-my)<bsz('mine')*TILE+TILE);
+    if(blocked) continue;
+    let site=spawn('mine',mx,my,'e');
+    site.buildDone=false; site.buildProgress=0; site.hp=1;
+    site.maxHp=BMHP['mine']||150;
+    site.mineResource=map[ty][tx]; site.mineralCount=1;
+    site.rallyX=mx+bsz('mine')*TILE/2; site.rallyY=my+bsz('mine')*TILE+TILE;
+    aiRes.g-=80; aiRes.w-=40;
+    vill.state='build'; vill.task={siteId:site.id}; vill.progress=0;
+    return true;
+  }
+  return false;
+}
+
+function cmdGather(type){
+  let vs=sel.filter(e=>e.type==='villager'&&e.team===myT());
+  if(!vs.length){log('Selectionnez des villageois!',true);return;}
+  vs.forEach(v=>{v.state=type;v.task=null;v._gt=type;v.progress=0;});
+  if(multiMode) recordCmd({action:'gather',ids:vs.map(v=>v.id),gatherType:type});
+  log('Collecte '+(type==='gather_gold'?'or':type==='gather_stone'?'pierre':'bois'));
+}
+function cmdBuild(type){
+  let v=sel.find(e=>e.type==='villager'&&e.team===myT());
+  if(!v){log('Selectionnez un villageois!',true);return;}
+  let current=entities.filter(b=>b.type===type&&b.team===myT()).length;
+  let limit=buildLimits[type]||10;
+  if(current>=limit){log('Limite atteinte pour '+NAMES[type]+' ('+limit+' max) !',true);return;}
+  placeMode={type,villager:v};document.body.classList.add('placing');
+  log('Cliquez sur la carte: '+NAMES[type]+' ('+current+'/'+limit+')');
+}
+function cmdTrain(b,ut){
+  let pop=entities.filter(u=>isUnit(u)&&u.team===myT()).length;
+  if(pop>=res.popMax){log('Population max!',true);return;}
+  let c=TCOST[ut];if(res.g<c.g){log('Or insuffisant!',true);return;}
+  if(b.training){log('Formation en cours!',true);return;}
+  res.g-=c.g;b.training={type:ut,...c};b.trainTimer=0;
+  if(multiMode) recordCmd({action:'train',buildingId:b.id,unitType:ut});
+  log('Formation '+NAMES[ut]+'...');
+}
+function doPlace(wx,wy){
+  if(!placeMode)return;
+  let{type,villager}=placeMode,tx=Math.round(wx/TILE)*TILE,ty=Math.round(wy/TILE)*TILE,sz=bsz(type),blocked=false;
+  let hasMineral=false, mineralCount=0, mineResType=null;
+  for(let dy=0;dy<sz;dy++) for(let dx=0;dx<sz;dx++){
+    let t=tAt(tx+dx*TILE+4,ty+dy*TILE+4);
+    if(t===T_WATER) blocked=true;
+    if(type==='mine'&&(t===T_GOLD||t===T_STONE)){
+      hasMineral=true; mineralCount++;
+      if(!mineResType) mineResType=t;
+    }
+  }
+  if(blocked){log('Zone invalide!',true);return;}
+  if(type==='mine'&&!hasMineral){log('La mine doit etre placee sur un minerai (or ou pierre)!',true);return;}
+  // Vérifier collision avec bâtiments existants
+  let szPx=bsz(type)*TILE;
+  let overlaps=entities.some(b=>isBuilding(b)&&Math.abs(b.x-tx)<szPx&&Math.abs(b.y-ty)<szPx);
+  if(overlaps){log('Emplacement déjà occupé!',true);return;}
+  let cost=BCOST[type];if(res.g<(cost.g||0)||res.w<(cost.w||0)||res.s<(cost.s||0)){log('Ressources insuffisantes!',true);return;}
+  res.g-=cost.g||0;res.w-=cost.w||0;res.s-=cost.s||0;
+  let mineType=null;
+  for(let dy=0;dy<sz;dy++) for(let dx=0;dx<sz;dx++){
+    let mx=Math.floor((tx+dx*TILE)/TILE), my=Math.floor((ty+dy*TILE)/TILE);
+    if(inM(mx,my)){
+      let t=map[my][mx];
+      if(type==='mine'&&(t===T_GOLD||t===T_STONE)){
+        if(!mineType) mineType=t;
+      } else {
+        map[my][mx]=T_GRASS;
+      }
+    }
+  }
+  let myTeam=myT();
+  let site=spawn(type,tx,ty,myTeam);site.buildDone=false;site.buildProgress=0;site.hp=1;
+  site.maxHp=Math.round((BMHP[type]||200)*resBonusHP(type));
+  site.rallyX=tx+sz*TILE/2;site.rallyY=ty+sz*TILE+1;
+  if(type==='mine'){
+    site.mineResource=mineResType;
+    site.mineralCount=mineralCount;
+    log('Mine: '+mineralCount+'/'+sz*sz+' cases de minerai (x'+mineralCount+' production)');
+  }
+  if(villager&&villager.hp>0){villager.state='build';villager.task={siteId:site.id};villager.progress=0;}
+  if(multiMode) recordCmd({action:'build',villagerId:villager?.id,btype:type,x:tx,y:ty,mineRes:mineResType,mineralCount});
+  log('Construction '+NAMES[type]+'!',true);placeMode=null;document.body.classList.remove('placing');
+}
+
+function cancelPlace(){placeMode=null;pendingRally=null;rallyMode=null;document.body.classList.remove('placing');}
+
+
+function cmdDemolish(building){
+  // Trouver un villageois inactif
+  let v=entities.find(e=>e.type==='villager'&&e.team===myT()&&e.state==='idle');
+  if(!v){log('Aucun villageois disponible pour demolir !',true);return;}
+  let cost=BCOST[building.type]||{g:0,w:0,s:0};
+  // Marquer le batiment pour demolition
+  building.demolishing=true;
+  building.demolishProgress=0;
+  building.demolishTime=180;
+  // Envoyer le villageois
+  v.state='demolish';
+  v.task={siteId:building.id, x:building.x+bsz(building.type)*TILE/2, y:building.y+bsz(building.type)*TILE};
+  v.progress=0;
+  log('Demolition de '+NAMES[building.type]+' lancee ! (+'+Math.floor(cost.g*.5)+' or +'+Math.floor(cost.w*.5)+' bois)');
+  _lsid='';
+}
+
+function cmdRepair(building){
+  if(building.hp>=building.maxHp){log('Batiment deja a plein PV !',true);return;}
+  // Trouver un villageois inactif
+  let v=entities.find(e=>e.type==='villager'&&e.team===myT()&&e.state==='idle');
+  if(!v){log('Aucun villageois disponible pour reparer !',true);return;}
+  // Cout de reparation: 25% du cout de construction
+  let cost=BCOST[building.type]||{g:0,w:0,s:0};
+  let repCost={g:Math.ceil((cost.g||0)*.25),w:Math.ceil((cost.w||0)*.25),s:Math.ceil((cost.s||0)*.25)};
+  if(res.g<repCost.g||res.w<repCost.w||res.s<repCost.s){
+    log('Ressources insuffisantes pour reparer ! ('+repCost.g+' or, '+repCost.w+' bois, '+repCost.s+' pierre)',true);return;
+  }
+  res.g-=repCost.g;res.w-=repCost.w;res.s-=repCost.s;
+  building.repairing=true;
+  building.repairProgress=0;
+  building.repairTime=120; // 2 secondes de travail
+  v.state='repair';
+  v.task={siteId:building.id};
+  v.progress=0;
+  log('Reparation de '+NAMES[building.type]+' lancee ! (-'+repCost.g+' or -'+repCost.w+' bois -'+repCost.s+' pierre)');
+  _lsid='';
+}
+
+function finishRepair(building){
+  building.hp=building.maxHp;
+  building.repairing=false;
+  building.repairProgress=0;
+  log(NAMES[building.type]+' repare ! (PV pleins)',true);
+  _lsid='';
+}
+
+function finishDemolish(building){
+  let cost=BCOST[building.type]||{g:0,w:0,s:0};
+  res.g+=Math.floor((cost.g||0)*0.5);
+  res.w+=Math.floor((cost.w||0)*0.5);
+  res.s+=Math.floor((cost.s||0)*0.5);
+  let sz=bsz(building.type);
+  for(let dy=0;dy<sz;dy++) for(let dx=0;dx<sz;dx++){
+    let tx=Math.floor(building.x/TILE)+dx,ty=Math.floor(building.y/TILE)+dy;
+    if(inM(tx,ty)) map[ty][tx]=T_GRASS;
+  }
+  // Ejecter le villageois demolisseur hors de l'emplacement
+  let sz2=bsz(building.type)*TILE;
+  let demolisher=entities.find(u=>u.type==='villager'&&u.state==='demolish'&&u.task?.siteId===building.id);
+  // Ejecter villageois en reparation si batiment detruit
+  entities.filter(u=>u.state==='repair'&&u.task?.siteId===building.id).forEach(u=>{
+    u.state='idle';u.task=null;
+    u.x=building.x+bsz(building.type)*TILE/2;u.y=building.y+bsz(building.type)*TILE+TILE;
+  });
+  // Ejecter le reparateur si le batiment est detruit
+  entities.filter(u=>u.state==='repair'&&u.task?.siteId===building.id).forEach(u=>{
+    u.state='idle';u.task=null;
+    u.x=building.x+bsz(building.type)*TILE/2;u.y=building.y+bsz(building.type)*TILE+TILE;
+  });
+  // Ejecter les villageois du labo si detruit
+  if(building.type==='lab'){
+    entities.filter(u=>u.state==='work_lab'&&u.task?.labId===building.id).forEach(u=>{
+      u.state='idle';u.task=null;
+      u.x=building.x+bsz('lab')*TILE/2;u.y=building.y+bsz('lab')*TILE+TILE;
+    });
+  }
+  entities=entities.filter(e=>e!==building);
+  if(sel.includes(building)) sel=sel.filter(e=>e!==building);
+  if(demolisher){ demolisher.x=building.x+sz2/2; demolisher.y=building.y+sz2+TILE; }
+  _lsid='';
+  log('Demoli ! +'+Math.floor((cost.g||0)*.5)+' or +'+Math.floor((cost.w||0)*.5)+' bois +'+Math.floor((cost.s||0)*.5)+' pierre',true);
+}
+
+function w2s(wx,wy){if(!cam)return{sx:0,sy:0};return{sx:wx-cam.x,sy:wy-cam.y};}
+function s2w(sx,sy){if(!cam)return{wx:sx,wy:sy};return{wx:sx+cam.x,wy:sy+cam.y};}
+
+function drawMap(){
+  if(!map||!cam)return;
+  let x0=Math.max(0,Math.floor(cam.x/TILE)),y0=Math.max(0,Math.floor(cam.y/TILE));
+  let x1=Math.min(MW,x0+Math.ceil((canvasW||canvas.width)/TILE)+2),y1=Math.min(MH,y0+Math.ceil((canvasH||canvas.height)/TILE)+2);
+  for(let ty=y0;ty<y1;ty++) for(let tx=x0;tx<x1;tx++){
+    let t=map[ty][tx],cols=TCOLS[t],sx=tx*TILE-cam.x,sy=ty*TILE-cam.y;
+    ctx.fillStyle=cols[(tx*3+ty*7)%cols.length];ctx.fillRect(sx,sy,TILE,TILE);
+    if(t===T_FOREST){ctx.fillStyle='#1a4a08';ctx.fillRect(sx+6,sy+1,4,2);ctx.fillRect(sx+4,sy+3,8,2);ctx.fillRect(sx+2,sy+5,12,3);ctx.fillRect(sx+6,sy+8,4,5);}
+    if(t===T_GOLD){ctx.fillStyle='#d4a820';ctx.fillRect(sx+2,sy+2,3,3);ctx.fillRect(sx+8,sy+5,3,3);ctx.fillRect(sx+5,sy+10,3,3);}
+    if(t===T_STONE){ctx.fillStyle='#6a6a6a';ctx.fillRect(sx+2,sy+3,6,7);ctx.fillRect(sx+9,sy+5,5,5);}
+  }
+}
+function bShape(type,sx,sy,bw,bh,tc,tc2,ent){
+  if(type==='base'){ctx.fillStyle=tc;ctx.fillRect(sx,sy,bw,bh);ctx.fillStyle=tc2;ctx.fillRect(sx+3,sy+3,bw-6,bh-6);ctx.fillStyle='#888';ctx.fillRect(sx,sy,10,10);ctx.fillRect(sx+bw-10,sy,10,10);ctx.fillRect(sx,sy+bh-10,10,10);ctx.fillRect(sx+bw-10,sy+bh-10,10,10);ctx.fillStyle='#cc8800';ctx.fillRect(sx+bw/2-5,sy+bh-14,10,14);}
+  else if(type==='barracks'){ctx.fillStyle=tc;ctx.fillRect(sx,sy,bw,bh);ctx.fillStyle='#553311';ctx.fillRect(sx+2,sy+2,bw-4,bh/2);ctx.fillStyle='#888';ctx.fillRect(sx,sy,bw,5);ctx.fillRect(sx+bw-4,sy,4,bh);}
+  else if(type==='tower'){ctx.fillStyle='#666';ctx.fillRect(sx+3,sy+3,bw-6,bh-3);ctx.fillStyle='#444';ctx.fillRect(sx,sy,5,10);ctx.fillRect(sx+bw-5,sy,5,10);ctx.fillStyle='#884400';ctx.fillRect(sx+bw/2-2,sy+5,4,10);}
+  else if(type==='mine'){
+    ctx.fillStyle='#554433';ctx.fillRect(sx,sy+bh/2,bw,bh/2);
+    ctx.fillStyle='#443322';ctx.fillRect(sx+2,sy+bh/2+2,bw-4,bh/2-4);
+    // Couleur du minerai extrait
+    let mc=ent&&ent.mineResource===T_STONE?'#aaaaaa':'#d4a820';
+    ctx.fillStyle=mc;ctx.fillRect(sx+bw/2-4,sy+bh/2-5,8,10);
+    // Indicateur actif si buildDone et mineResource
+    if(ent&&ent.buildDone&&ent.mineResource){
+      let active=ent.mineActive!==false;
+      ctx.fillStyle=active?'#00ff0066':'#ff440066';
+      ctx.fillRect(sx,sy,bw,4);
+      if(active&&frame%60<30){ctx.fillStyle=mc;ctx.fillRect(sx+bw/2-2,sy+2,4,2);}
+      if(!active){
+        // Croix rouge pour inactive
+        ctx.strokeStyle='#ff4444';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(sx+2,sy+2);ctx.lineTo(sx+bw-2,sy+bh-2);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(sx+bw-2,sy+2);ctx.lineTo(sx+2,sy+bh-2);ctx.stroke();
+      }
+    }
+  }
+  else if(type==='lab'){
+    ctx.fillStyle='#1a1a3a';ctx.fillRect(sx,sy,bw,bh);
+    ctx.fillStyle='#2a2a5a';ctx.fillRect(sx+2,sy+2,bw-4,bh-4);
+    // Dome
+    ctx.fillStyle='#4444aa';ctx.beginPath();ctx.arc(sx+bw/2,sy+bh/2,bw/3,Math.PI,0);ctx.fill();
+    // Fenetre lumineuse
+    let glow=Math.sin(frame*.05)*.5+.5;
+    ctx.fillStyle=`rgba(100,150,255,${0.3+glow*0.4})`;
+    ctx.beginPath();ctx.arc(sx+bw/2,sy+bh/2,bw/5,Math.PI,0);ctx.fill();
+    // Antenne
+    ctx.strokeStyle='#8888cc';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(sx+bw/2,sy+bh/2-bw/3);ctx.lineTo(sx+bw/2,sy+4);ctx.stroke();
+    ctx.fillStyle='#aaaaff';ctx.beginPath();ctx.arc(sx+bw/2,sy+4,3,0,Math.PI*2);ctx.fill();
+    // Afficher nb de villageois dans le labo
+    if(ent&&ent.buildDone){
+      let wk=entities.filter(u=>u.type==='villager'&&u.team===myT()&&u.state==='work_lab'&&u.task?.labId===ent.id).length;
+      if(wk>0){
+        let mwv=labConfig?.maxWorkers||3;
+      ctx.fillStyle='#aaaaff88';ctx.fillRect(sx,sy+bh-6,bw*(wk/mwv),4);
+      ctx.fillStyle='#ccccff';ctx.font='7px monospace';ctx.textAlign='center';
+      ctx.fillText(wk+'/'+mwv,sx+bw/2,sy+bh+8);ctx.textAlign='left';
+      }
+    }
+  }
+  else if(type==='farm'){ctx.fillStyle='#3a5a10';ctx.fillRect(sx,sy,bw,bh);ctx.fillStyle='#88cc30';for(let r=0;r<3;r++) for(let c=0;c<3;c++) ctx.fillRect(sx+4+c*9,sy+4+r*9,5,6);}
+  else if(type==='warehouse'){
+    // Batiment brun avec toit et porte
+    ctx.fillStyle='#5a3a18';ctx.fillRect(sx,sy,bw,bh);
+    ctx.fillStyle='#7a5228';ctx.fillRect(sx+2,sy+2,bw-4,bh-4);
+    // Toit
+    ctx.fillStyle='#8b4513';ctx.fillRect(sx,sy,bw,6);
+    // Porte
+    ctx.fillStyle='#3a1a08';ctx.fillRect(sx+bw/2-5,sy+bh-12,10,12);
+    // Symbole coffre (or)
+    ctx.fillStyle='#d4a820';ctx.fillRect(sx+4,sy+8,8,6);ctx.fillRect(sx+bw-12,sy+8,8,6);
+    ctx.fillStyle='#ffcc44';ctx.fillRect(sx+5,sy+9,6,4);ctx.fillRect(sx+bw-11,sy+9,6,4);
+  }
+}
+function drawBuilding(e){
+  // Cacher les batiments ennemis dans le brouillard
+  let sz=bsz(e.type),{sx,sy}=w2s(e.x,e.y),bw=sz*TILE,bh=sz*TILE;
+  if(sx<-bw||sx>(canvasW||canvas.width)+bw||sy<-bh||sy>(canvasH||canvas.height)+bh)return;
+  // Cacher les batiments ennemis dans le brouillard
+  let _tc=teamColor(e.team);
+  let tc=isHumanTeam(e.team)?_tc.build:'#662222';
+  let tc2=isHumanTeam(e.team)?_tc.build2:'#9a3a3a';
+  if(!e.buildDone){
+    let prog=Math.min(1,e.buildProgress/(BTIME[e.type]||200));
+    ctx.strokeStyle='#886600';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.strokeRect(sx,sy,bw,bh);ctx.setLineDash([]);
+    ctx.save();ctx.beginPath();ctx.rect(sx,sy+bh*(1-prog),bw,bh*prog);ctx.clip();ctx.globalAlpha=.5;bShape(e.type,sx,sy,bw,bh,tc,tc2,e);ctx.restore();ctx.globalAlpha=1;
+    ctx.fillStyle='#331100';ctx.fillRect(sx,sy-9,bw,5);ctx.fillStyle='#ffaa00';ctx.fillRect(sx,sy-9,Math.round(bw*prog),5);
+    ctx.fillStyle='#ffcc66';ctx.font='8px monospace';ctx.textAlign='center';ctx.fillText(Math.round(prog*100)+'%',sx+bw/2,sy-11);ctx.textAlign='left';
+    if(sel.includes(e)){ctx.strokeStyle='#88ff44';ctx.lineWidth=2;ctx.strokeRect(sx-1,sy-1,bw+2,bh+2);
+    let lvs=getBuildingLevelStr(e.type);
+    if(lvs){
+      ctx.fillStyle='#88eeaacc';ctx.font='8px monospace';ctx.textAlign='center';
+      ctx.fillText(lvs,sx+bw/2,sy-18);ctx.textAlign='left';
+    }}
+    return;
+  }
+  bShape(e.type,sx,sy,bw,bh,tc,tc2,e);
+  ctx.fillStyle='#300';ctx.fillRect(sx,sy-6,bw,4);ctx.fillStyle='#0c0';ctx.fillRect(sx,sy-6,Math.round(bw*e.hp/e.maxHp),4);
+  if(e.training){let p=e.trainTimer/e.training.t;ctx.fillStyle='#004488';ctx.fillRect(sx,sy+bh,bw,3);ctx.fillStyle='#44aaff';ctx.fillRect(sx,sy+bh,Math.round(bw*p),3);}
+  // Barre de reparation
+  if(e.repairing&&e.repairProgress>0){
+    let rp=e.repairProgress/e.repairTime;
+    ctx.fillStyle='#003300';ctx.fillRect(sx,sy-22,bw,5);
+    ctx.fillStyle='#00cc44';ctx.fillRect(sx,sy-22,Math.round(bw*rp),5);
+    ctx.fillStyle='#aaffaa';ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText('Reparation '+Math.round(rp*100)+'%',sx+bw/2,sy-24);ctx.textAlign='left';
+    if(Math.floor(frame/8)%2===0){ctx.fillStyle='#00ff4433';ctx.fillRect(sx,sy,bw,bw);}
+  }
+
+
+  // Barre de demolition
+  if(e.demolishing&&e.demolishProgress>0){
+    let dp=e.demolishProgress/e.demolishTime;
+    ctx.fillStyle='#550000';ctx.fillRect(sx,sy-14,bw,5);
+    ctx.fillStyle='#ff4400';ctx.fillRect(sx,sy-14,Math.round(bw*dp),5);
+    ctx.fillStyle='#ffaa44';ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText('Demolition '+Math.round(dp*100)+'%',sx+bw/2,sy-16);ctx.textAlign='left';
+    // Animation: clignotement rouge sur le batiment
+    if(Math.floor(frame/8)%2===0){ctx.fillStyle='#ff000033';ctx.fillRect(sx,sy,bw,bw);}
+  }
+  if(sel.includes(e)){
+    ctx.strokeStyle='#88ff44';ctx.lineWidth=2;ctx.strokeRect(sx-1,sy-1,bw+2,bh+2);
+    // Portee de tir de la tour
+    if(e.type==='tower'){
+      let cx=sx+bw/2,cy=sy+bh/2;
+      ctx.strokeStyle='#ff884488';ctx.lineWidth=1;ctx.setLineDash([5,3]);
+      ctx.beginPath();ctx.arc(cx,cy,TOWER_RANGE,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#ff884410';ctx.beginPath();ctx.arc(cx,cy,TOWER_RANGE,0,Math.PI*2);ctx.fill();
+      ctx.setLineDash([]);
+    }
+  }
+  if(e.team===myT()&&e.buildDone&&(e.type==='base'||e.type==='barracks')){let{sx:rx,sy:ry}=w2s(e.rallyX,e.rallyY);ctx.strokeStyle='#88ff4444';ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(sx+bw/2,sy+bh/2);ctx.lineTo(rx,ry);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#88ff44';ctx.fillRect(rx-3,ry-3,6,6);}
+}
+function drawUnit(e){
+  // Cacher les ennemis dans le brouillard
+  let{sx,sy}=w2s(e.x,e.y);
+  if(sx<-24||sx>(canvasW||canvas.width)+24||sy<-24||sy>(canvasH||canvas.height)+24)return;
+  // Cacher les ennemis dans le brouillard
+  let _uc=teamColor(e.team);
+  let pc=isHumanTeam(e.team)?_uc.unit:'#cc2222',hc='#f0c080';
+  if(e.state==='work_lab') return; // villageois dans le labo: invisible
+  let bob=(e.state==='build'||e.state==='demolish'||e.state==='repair'||e.state==='gather_gold'||e.state==='gather_wood'||e.state==='gather_stone')?Math.sin(frame*.25)*2:0;
+  if(e.type==='villager'){
+    ctx.fillStyle=pc;ctx.fillRect(sx-3,sy-6+bob,6,8);ctx.fillStyle=hc;ctx.fillRect(sx-2,sy-11+bob,5,5);ctx.fillStyle='#8844bb';ctx.fillRect(sx-1,sy-13+bob,3,3);
+    if(e.state==='repair'){
+      let sw=Math.sin(frame*.4)*4;
+      ctx.fillStyle='#c8a060';ctx.fillRect(sx+3,sy-8+bob+sw,2,7);
+      ctx.fillStyle='#44cc22';ctx.fillRect(sx+2,sy-9+bob+sw,4,3);
+      if(frame%8<4){ctx.fillStyle='#88ff44';ctx.fillRect(sx+5,sy-3+bob,2,2);}
+    }
+    if(e.state==='build'){let sw=Math.sin(frame*.4)*4;ctx.fillStyle='#c8a060';ctx.fillRect(sx+3,sy-8+bob+sw,2,7);ctx.fillStyle='#888';ctx.fillRect(sx+2,sy-9+bob+sw,4,3);if(frame%8<4){ctx.fillStyle='#ffff44';ctx.fillRect(sx+5,sy-3+bob,2,2);}}
+    if(e.state==='demolish'){let sw=Math.sin(frame*.5)*5;ctx.fillStyle='#c8a060';ctx.fillRect(sx+3,sy-8+bob+sw,2,7);ctx.fillStyle='#666';ctx.fillRect(sx+2,sy-9+bob+sw,4,3);if(frame%6<3){ctx.fillStyle='#ff6600';ctx.fillRect(sx+5,sy-3+bob,2,2);}}
+    if(e.state==='gather_gold'){ctx.fillStyle='#ffd700';ctx.fillRect(sx+3,sy-10+bob+Math.sin(frame*.3)*3,3,6);}
+    if(e.state==='gather_wood'){ctx.fillStyle='#a06030';ctx.fillRect(sx+3,sy-10+bob+Math.sin(frame*.3)*3,3,6);}
+    if(e.state==='gather_stone'){ctx.fillStyle='#aaaaaa';ctx.fillRect(sx+3,sy-10+bob+Math.sin(frame*.3)*3,3,6);}
+  }else if(e.type==='soldier'||e.type==='esoldier'){
+    ctx.fillStyle=pc;ctx.fillRect(sx-3,sy-7,7,9);ctx.fillStyle='#999';ctx.fillRect(sx-3,sy-7,7,3);ctx.fillStyle=e.team==='p'?'#2266ee':e.team==='p2'?'#66aaff':'#cc2222';ctx.fillRect(sx+4,sy-6,2,7);
+  }else if(e.type==='archer'||e.type==='earcher'){
+    ctx.fillStyle=pc;ctx.fillRect(sx-2,sy-7,6,8);ctx.fillStyle='#c8a060';ctx.fillRect(sx-5,sy-9,2,11);ctx.fillStyle=hc;ctx.fillRect(sx-2,sy-11,5,4);
+  }else if(e.type==='knight'){
+    ctx.fillStyle='#aaddff';ctx.fillRect(sx-4,sy-8,9,11);ctx.fillStyle='#999';ctx.fillRect(sx-4,sy-8,9,4);ctx.fillStyle='#ffcc00';ctx.fillRect(sx-2,sy-10,5,3);ctx.fillStyle='#aaddff';ctx.fillRect(sx+5,sy-6,2,9);
+  }
+  ctx.fillStyle='#300';ctx.fillRect(sx-8,sy+4,16,3);ctx.fillStyle=e.hp/e.maxHp>.5?'#0c0':'#f80';ctx.fillRect(sx-8,sy+4,Math.round(16*e.hp/e.maxHp),3);
+  if(e.carry?.g>0){ctx.fillStyle='#ffd700';ctx.fillRect(sx-2,sy-14,4,4);}
+  if(e.carry?.w>0){ctx.fillStyle='#a06030';ctx.fillRect(sx-2,sy-14,4,4);}
+  if(e.carry?.s>0){ctx.fillStyle='#aaaaaa';ctx.fillRect(sx-2,sy-14,4,4);}
+  if((e.state==='gather_gold'||e.state==='gather_wood')&&e.progress>0){ctx.fillStyle='#ffff0055';ctx.fillRect(sx-8,sy-17,Math.round(16*e.progress/60),3);}
+  if(sel.includes(e)){ctx.strokeStyle='#88ff44';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(sx,sy+2,9,5,0,0,Math.PI*2);ctx.stroke();}
+}
+function drawRallyPreview(){
+  if(!rallyMode||!cam) return;
+  let{sx,sy}=w2s(mouse.wx,mouse.wy);
+  ctx.strokeStyle='#88ff44';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(sx-10,sy);ctx.lineTo(sx+10,sy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(sx,sy-10);ctx.lineTo(sx,sy+10);ctx.stroke();
+  ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#88ff4488';ctx.fill();
+}
+function drawPreview(){
+  if(!placeMode||!cam)return;
+  let sz=bsz(placeMode.type),tx=Math.round(mouse.wx/TILE)*TILE,ty=Math.round(mouse.wy/TILE)*TILE;
+  let{sx,sy}=w2s(tx,ty),bw=sz*TILE,blocked=false;
+  for(let dy=0;dy<sz;dy++) for(let dx=0;dx<sz;dx++) if(tAt(tx+dx*TILE+4,ty+dy*TILE+4)===T_WATER)blocked=true;
+  ctx.save();ctx.globalAlpha=.45;bShape(placeMode.type,sx,sy,bw,bw,'#336622','#4a9a3a');ctx.restore();
+  ctx.strokeStyle=blocked?'#ff4444':'#88ff44';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.strokeRect(sx,sy,bw,bw);ctx.setLineDash([]);
+  // Portee de tir de la tour en mode placement
+  if(placeMode.type==='tower'){
+    let cx=sx+bw/2,cy=sy+bw/2;
+    ctx.strokeStyle='#ff884488';ctx.lineWidth=1;ctx.setLineDash([5,3]);
+    ctx.beginPath();ctx.arc(cx,cy,TOWER_RANGE,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#ff884410';ctx.beginPath();ctx.arc(cx,cy,TOWER_RANGE,0,Math.PI*2);ctx.fill();
+    ctx.setLineDash([]);
+  }
+  let cost=BCOST[placeMode.type];
+  ctx.fillStyle=blocked?'#ff6666':'#aaffaa';ctx.font='9px monospace';ctx.textAlign='center';
+  ctx.fillText(sz+'x'+sz+' tuiles',sx+bw/2,sy-4);
+  ctx.fillStyle='#ffffaa';ctx.fillText(cost.g+' or / '+cost.w+' bois',sx+bw/2,sy+bw+11);
+  if(placeMode.type==='mine'){
+    // Compter les minerais sous la preview
+    let preCount=0;
+    for(let dy=0;dy<sz;dy++) for(let dx=0;dx<sz;dx++){
+      let t=tAt(tx+dx*TILE+4,ty+dy*TILE+4);
+      if(t===T_GOLD||t===T_STONE) preCount++;
+    }
+    let total=sz*sz;
+    ctx.fillStyle=preCount>0?'#88ff44':'#ff6666';
+    ctx.fillText('Minerai: '+preCount+'/'+total+' cases (x'+preCount+')',sx+bw/2,sy+bw+22);
+  }
+  if(blocked){ctx.fillStyle='#ff4444';ctx.fillText('Zone invalide!',sx+bw/2,sy+bw+22);}
+  ctx.textAlign='left';
+}
+function drawProjectiles(){
+  if(!cam) return;
+  for(let p of projectiles){
+    let{sx,sy}=w2s(p.x,p.y);
+    let{sx:tx,sy:ty}=w2s(p.tx,p.ty);
+    if(p.type==='arrow'){
+      // Fleche: ligne fine avec pointe
+      let dx=tx-sx,dy=ty-sy,dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<1) continue;
+      let nx=dx/dist,ny=dy/dist;
+      ctx.strokeStyle=p.color;ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(sx-nx*4,sy-ny*4);ctx.lineTo(sx+nx*5,sy+ny*5);ctx.stroke();
+      // Pointe
+      ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(sx+nx*5,sy+ny*5,2,0,Math.PI*2);ctx.fill();
+    } else {
+      // Boulet/eclair: cercle lumineux
+      ctx.fillStyle=p.color;
+      ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fill();
+      // Trainee
+      ctx.strokeStyle=p.color+'88';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(sx,sy);
+      let{sx:ox,sy:oy}=w2s(p.x-(p.tx-p.x)/Math.sqrt((p.tx-p.x)**2+(p.ty-p.y)**2)*6,
+                             p.y-(p.ty-p.y)/Math.sqrt((p.tx-p.x)**2+(p.ty-p.y)**2)*6);
+      ctx.lineTo(ox,oy);ctx.stroke();
+    }
+  }
+}
+
+function drawDrag(){if(!dragRect)return;ctx.strokeStyle='#88ff44';ctx.lineWidth=1;ctx.setLineDash([4,2]);ctx.strokeRect(dragRect.x,dragRect.y,dragRect.w,dragRect.h);ctx.fillStyle='#88ff4418';ctx.fillRect(dragRect.x,dragRect.y,dragRect.w,dragRect.h);ctx.setLineDash([]);}
+function drawOverlay(){
+  if(gstate!=='win'&&gstate!=='lose')return;
+  ctx.fillStyle='#00000099';ctx.fillRect(0,0,canvasW||canvas.width,canvasH||canvas.height);
+  ctx.fillStyle=gstate==='win'?'#44ff44':'#ff4444';ctx.font='bold 52px monospace';ctx.textAlign='center';
+  ctx.fillText(gstate==='win'?'VICTOIRE!':'DEFAITE!',(canvasW||canvas.width)/2,(canvasH||canvas.height)/2);
+  ctx.font='16px monospace';ctx.fillStyle='#c8d8a0';ctx.fillText('Cliquez sur Menu',(canvasW||canvas.width)/2,(canvasH||canvas.height)/2+40);ctx.textAlign='left';
+}
+function drawMini(){
+  if(!map||!cam)return;
+  let mw=miniC.width,mh=miniC.height,sw=mw/MW,sh=mh/MH;
+  const MC={[T_GRASS]:'#2a4a10',[T_FOREST]:'#163208',[T_WATER]:'#0a1e3a',[T_GOLD]:'#5a4a10',[T_STONE]:'#3a3a3a'};
+  miniX.clearRect(0,0,mw,mh);
+  for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+    
+    miniX.fillStyle=MC[map[y][x]];miniX.fillRect(x*sw,y*sh,Math.ceil(sw)+1,Math.ceil(sh)+1);
+    
+  }
+  entities.forEach(e=>{
+
+    miniX.fillStyle=isHumanTeam(e.team)?teamColor(e.team).mini:'#ff4444';
+    miniX.fillRect(e.x/TILE*sw-1,e.y/TILE*sh-1,isBuilding(e)?4:2,isBuilding(e)?4:2);
+  });
+  miniX.strokeStyle='#ffffff44';miniX.lineWidth=1;let _cw=canvasW||canvas.width,_ch=canvasH||canvas.height;miniX.strokeRect(cam.x/TILE*sw,cam.y/TILE*sh,_cw/TILE*sw,_ch/TILE*sh);
+  // Minimap overlay mobile : redessiner si visible
+  if(isMobile && minimapVisible) drawMobileMap();
+}
+
+let _lsid='',_lg=-1,_lw=-1,_lp=-1,_ls=-1,_lsc=-1,_lfarms=-1,_lagri=-1,_lpopmax=-1;
+function updateUI(){
+  if(!entities||!res)return;
+  let pop=entities.filter(u=>isUnit(u)&&u.team===myT()).length;
+  if(res.g!==_lg){document.getElementById('r-gold').textContent=Math.floor(res.g);_lg=res.g;}
+  if(res.w!==_lw){document.getElementById('r-wood').textContent=Math.floor(res.w);_lw=res.w;}
+  let rs=Math.floor(res.s||0);if(rs!==_ls){let el=document.getElementById('r-stone');if(el)el.textContent=rs;_ls=rs;}
+  let rsc=Math.floor(res.sc||0);if(rsc!==_lsc){let elsc=document.getElementById('r-science');if(elsc)elsc.textContent=rsc;_lsc=rsc;}
+  let rhud=document.getElementById('research-hud');
+  if(rhud) rhud.textContent=activeResearch?'🔬 '+RESEARCH_TREE[activeResearch.key].name+' '+Math.round(activeResearch.progress/activeResearch.totalTime*100)+'%':'';
+  // Recalcul popMax uniquement si le nb de fermes ou le niveau agriculture a change
+  if(entities){
+    let farms=entities.filter(x=>x.type==='farm'&&x.team===myT()&&x.buildDone).length;
+    let agriLv=techLevels.agriculture||0;
+    if(farms!==_lfarms||agriLv!==_lagri){
+      res.popMax=10+farms*(5+(agriLv*2));
+      _lfarms=farms;_lagri=agriLv;
+    }
+  }
+  if(pop!==_lp){document.getElementById('r-pop').textContent=pop;_lp=pop;}
+  let curPopMax=res.popMax||10;
+  if(curPopMax!==_lpopmax){document.getElementById('r-popmax').textContent=curPopMax;_lpopmax=curPopMax;}
+  let sk=sel.map(e=>e.id+'_'+e.state+'_'+Math.floor(e.hp)+'_'+(e.training?1:0)+'_'+e.buildDone).join(',');
+  if(sk===_lsid)return;_lsid=sk;
+  let ne=document.getElementById('sel-name'),st=document.getElementById('sel-stats'),ap=document.getElementById('act-panel');
+  ap.innerHTML='';
+  if(!sel.length){ne.textContent='Rien de selectionne';st.textContent='Cliquez sur une unite ou un batiment.';return;}
+  if(sel.length>1){ne.textContent=sel.length+' unites';st.textContent='';if(sel.some(e=>e.type==='villager')){let gMG=makeGroup(ap,'⛏ Collecte',false);gbtn(gMG,'Collecter Or','Gratuit',()=>cmdGather('gather_gold'));gbtn(gMG,'Collecter Bois','Gratuit',()=>cmdGather('gather_wood'));gbtn(gMG,'Collecter Pierre','Gratuit',()=>cmdGather('gather_stone'));}return;}
+  let e=sel[0];
+  let teamLabel = e.team===myT()?'Allie':(e.team==='e'||e.team!==myT()?'Ennemi':'?');
+  ne.textContent=(NAMES[e.type]||e.type)+' ('+teamLabel+')';
+  let sl2={idle:'Inactif',move:'Deplacement',attack:'Combat',gather_gold:'Collecte or',gather_wood:'Collecte bois',gather_stone:'Collecte pierre',return:'Retour base',build:'Construction',demolish:'Demolition',repair:'Reparation',work_lab:'Au laboratoire'}[e.state]||e.state;
+  try{
+    let lvStr=isBuilding(e)?getBuildingLevelStr(e.type):'';
+    let lines=['HP: '+Math.ceil(e.hp)+'/'+e.maxHp+(lvStr?' '+lvStr:'')];
+    if(isUnit(e)) lines.push('Etat: '+sl2);
+    if(!e.buildDone&&isBuilding(e)) lines.push('Chantier: '+Math.round(e.buildProgress/(BTIME[e.type]||200)*100)+'%');
+    if(e.type==='mine'&&e.buildDone){
+      if(e.mineResource){
+        lines.push('Ressource: '+(e.mineResource===T_GOLD?'Or':'Pierre'));
+        lines.push('Cases: '+(e.mineralCount||1)+'/'+Math.pow(bsz(e.type),2));
+        let baseRate=(e.mineResource===T_GOLD?mineRates.gold:mineRates.stone);
+        let prod=Math.round((e.mineralCount||1)*baseRate*resBonusMine());
+        lines.push('Production: '+prod+' '+(e.mineResource===T_GOLD?'or':'pierre')+'/min'+(techLevels.extraction>0?' (x'+resBonusMine().toFixed(1)+')':''));
+        lines.push('Mine: '+(e.mineActive!==false?'<span style="color:#44cc22">Active</span>':'<span style="color:#cc4444">Inactive</span>'));
+      } else {
+        lines.push('Aucun minerai');
+      }
+    }
+    if(e.carry?.g>0) lines.push('Or: '+e.carry.g);
+    if(e.carry?.w>0) lines.push('Bois: '+e.carry.w);
+    if(e.carry?.s>0) lines.push('Pierre: '+e.carry.s);
+    st.innerHTML=lines.join('<br>');
+  }catch(err){st.innerHTML='HP: '+Math.ceil(e.hp||0)+'/'+e.maxHp;}
+  if(e.team!==myT())return;
+  if(e.type==='villager'){
+    let gGather=makeGroup(ap,'⛏ Collecte',false);
+    gbtn(gGather,'Collecter Or','Gratuit',()=>cmdGather('gather_gold'));
+    gbtn(gGather,'Collecter Bois','Gratuit',()=>cmdGather('gather_wood'));
+    gbtn(gGather,'Collecter Pierre','Gratuit',()=>cmdGather('gather_stone'));
+    let theLab=entities.find(b=>b.type==='lab'&&b.team===myT()&&b.buildDone);
+    if(theLab){
+      let workers=entities.filter(u=>u.type==='villager'&&u.team===myT()&&u.state==='work_lab'&&u.task?.labId===theLab.id).length;
+      let isWorking=sel.length===1&&sel[0].state==='work_lab'&&sel[0].task?.labId===theLab.id;
+      if(isWorking){
+        gbtn(ap,'Quitter le labo','',()=>{
+          sel[0].state='idle';sel[0].task=null;
+          let sz=bsz('lab')*TILE;
+          sel[0].x=theLab.x+sz/2;sel[0].y=theLab.y+sz+TILE;
+          log('Villageois a quitte le laboratoire.');_lsid='';
+        });
+      } else if(workers<(labConfig.maxWorkers||3)){
+        gbtn(ap,'Entrer au labo ('+workers+'/'+(labConfig.maxWorkers||3)+')','Produit science',()=>{
+          let v=sel[0];
+          v.state='work_lab';v.task={labId:theLab.id};
+          log('Villageois dirige vers le laboratoire.');_lsid='';
+        });
+      } else {
+        gbtn(ap,'Labo complet ('+(labConfig.maxWorkers||3)+'/'+(labConfig.maxWorkers||3)+')','',()=>{},true);
+      }
+    }
+    let t=myT();
+    let _bc=entities.filter(b=>b.type==='barracks'&&b.team===t).length;
+    let _tc=entities.filter(b=>b.type==='tower'&&b.team===t).length;
+    let _mc=entities.filter(b=>b.type==='mine'&&b.team===t).length;
+    let _fc=entities.filter(b=>b.type==='farm'&&b.team===t).length;
+    let _wc=entities.filter(b=>b.type==='warehouse'&&b.team===t).length;
+    let _lbc=entities.filter(b=>b.type==='lab'&&b.team===t).length;
+    // Groupe Construction (replié par défaut si peu de place)
+    let gBuild=makeGroup(ap,'⚒ Construction',false);
+    gbtn(gBuild,'Caserne ('+_bc+'/'+(buildLimits.barracks||5)+') '+getBuildingLevelStr('barracks'),'120or 80bois',()=>cmdBuild('barracks'),res.g<120||res.w<80||_bc>=(buildLimits.barracks||5));
+    gbtn(gBuild,'Mine ('+_mc+'/'+(buildLimits.mine||10)+') '+getBuildingLevelStr('mine'),'80or 40bois',()=>cmdBuild('mine'),res.g<80||res.w<40||_mc>=(buildLimits.mine||10));
+    gbtn(gBuild,'Ferme ('+_fc+'/'+(buildLimits.farm||10)+') '+getBuildingLevelStr('farm'),'60or 50bois',()=>cmdBuild('farm'),res.g<60||res.w<50||_fc>=(buildLimits.farm||10));
+    gbtn(gBuild,'Tour ('+_tc+'/'+(buildLimits.tower||10)+') '+getBuildingLevelStr('tower'),'60or 20bois 40pierre',()=>cmdBuild('tower'),(res.g<60||res.w<20||res.s<40||_tc>=(buildLimits.tower||10)));
+    gbtn(gBuild,'Labo ('+_lbc+'/'+(buildLimits.lab||3)+') '+getBuildingLevelStr('lab'),'150or 100bois 50pierre',()=>cmdBuild('lab'),(res.g<150||res.w<100||res.s<50||_lbc>=(buildLimits.lab||3)));
+    gbtn(gBuild,'Entrepot ('+_wc+'/'+(buildLimits.warehouse||10)+') '+getBuildingLevelStr('warehouse'),'80or 60bois',()=>cmdBuild('warehouse'),res.g<80||res.w<60||_wc>=(buildLimits.warehouse||10));
+  }
+  if(e.type==='barracks'&&e.buildDone){
+    let gTrain=makeGroup(ap,'⚔ Entraînement',false);
+    gbtn(gTrain,'Soldat','50or',()=>cmdTrain(e,'soldier'),res.g<50||!!e.training);
+    gbtn(gTrain,'Archer','60or',()=>cmdTrain(e,'archer'),res.g<60||!!e.training);
+    gbtn(gTrain,'Chevalier','120or',()=>cmdTrain(e,'knight'),res.g<120||!!e.training);
+    if(e.training)gbtn(ap,'En formation: '+NAMES[e.training.type],'',()=>{},true);
+    let gBarOps=makeGroup(ap,'⚙ Options',true);
+    gbtn(gBarOps,'Point de Ralliement','',()=>{rallyMode=e;document.body.classList.add('placing');log('Cliquez sur la carte pour placer le point de ralliement.');});
+    gbtn(gBarOps,'Demolir','50% remb.',()=>cmdDemolish(e));
+  }
+  if(e.type==='base'&&e.buildDone){
+    gbtn(ap,'Villageois','50or',()=>cmdTrain(e,'villager'),res.g<50||!!e.training);
+    if(e.training)gbtn(ap,'En formation: '+NAMES[e.training.type],'',()=>{},true);
+    gbtn(ap,'Point de Ralliement','',()=>{rallyMode=e;document.body.classList.add('placing');log('Cliquez sur la carte pour placer le point de ralliement.');});
+  }
+  if(e.type==='mine'&&e.buildDone&&e.team===myT()&&e.mineResource){
+    let active=e.mineActive!==false;
+    gbtn(ap,active?'⏸ Desactiver mine':'▶ Activer mine','',()=>{
+      e.mineActive=!active;
+      log((e.mineActive?'Mine activee':'Mine desactivee')+'!',true);
+      _lsid='';
+    });
+  }
+  if(isBuilding(e)&&e.buildDone&&e.team===myT()){
+    let gMaint=makeGroup(ap,'🔧 Maintenance',true);
+    if(e.repairing){
+      let rpct=Math.round((e.repairProgress||0)/(e.repairTime||120)*100);
+      gbtn(gMaint,'🔧 Reparation '+rpct+'%','En cours...',()=>{},true);
+    } else {
+      let hpPct=Math.round(e.hp/e.maxHp*100);
+      gbtn(gMaint,'🔧 Reparer ('+hpPct+'% PV)','Gratuit',()=>cmdRepair(e),e.hp>=e.maxHp);
+    }
+  }
+  // Demolition pour tous les batiments sauf la base
+  if(e.type==='lab'&&e.buildDone&&e.team===myT()){
+    try{
+    let wk=entities.filter(u=>u.type==='villager'&&u.team===myT()&&u.state==='work_lab'&&u.task?.labId===e.id);
+    let mw=labConfig.maxWorkers||3;
+    let labInfo='Chercheurs: '+wk.length+'/'+mw+'<br>Production: '+(wk.length>0?wk.length*(labConfig.sciRate||1)+' sc/10s':'Inactive');
+    if(st) st.innerHTML=(st.innerHTML||'')+'<br>'+labInfo;
+    // Bouton faire sortir chaque villageois
+    wk.forEach((v,i)=>{
+      gbtn(ap,'Sortir villageois '+(i+1),'',()=>{
+        v.state='idle';v.task=null;
+        v.x=e.x+bsz('lab')*TILE/2;
+        v.y=e.y+bsz('lab')*TILE+TILE;
+        log('Villageois sorti du laboratoire.');_lsid='';
+      });
+    });
+    if(wk.length===0) gbtn(ap,'Labo vide','Envoyer des villageois',()=>{},true);
+    }catch(err){log('Erreur UI labo: '+err.message,true);}
+    // Afficher l'arbre de recherche
+    Object.entries(RESEARCH_TREE).forEach(([key,r])=>{
+      let lv=techLevels[key];
+      if(lv>=r.levels){
+        let rbMax=document.createElement('button');
+        rbMax.className='abtn';rbMax.innerHTML=r.name+' ✓ MAX<small>Termine</small>';
+        rbMax.setAttribute('disabled','');
+        let tipMax=document.getElementById('research-tooltip');
+        rbMax.addEventListener('mouseenter',()=>{if(tipMax){tipMax.innerHTML='<b style="color:#88ee44">'+r.name+' — MAITRISE</b><br><br>'+r.details[r.levels-1].replace(/\n/g,'<br>');tipMax.style.display='block';}});
+        rbMax.addEventListener('mouseleave',()=>{if(tipMax)tipMax.style.display='none';});
+        ap.appendChild(rbMax);
+        return;
+      }
+      let cost=r.cost[lv];
+      let isActive=activeResearch&&activeResearch.key===key;
+      let canAfford=res.g>=(cost.g||0)&&res.w>=(cost.w||0)&&res.sc>=(cost.sc||0);
+      let label=r.name+' (niv.'+(lv+1)+'/'+r.levels+')';
+      let costStr=(cost.g||0)+'or '+(cost.w||0)+'bois '+(cost.sc||0)+'sc';
+      if(isActive){
+        let pct=Math.round(activeResearch.progress/activeResearch.totalTime*100);
+        gbtn(ap,'⏳ '+r.name+' '+pct+'%','En cours...',()=>{},true);
+      } else {
+        let rb=document.createElement('button');
+        rb.className='abtn';
+        rb.innerHTML=label+'<small>'+costStr+'</small>';
+        if(!canAfford||!!activeResearch) rb.setAttribute('disabled','');
+        else rb.addEventListener('click',()=>{
+          if(activeResearch){log('Recherche deja en cours!',true);return;}
+          if(!canAfford){log('Ressources insuffisantes!',true);return;}
+          res.g-=cost.g||0;res.w-=cost.w||0;res.sc-=cost.sc||0;
+          activeResearch={key,progress:0,totalTime:r.time[lv]};
+          log('Recherche lancee: '+r.name+' niv.'+(lv+1));_lsid='';
+        });
+        // Tooltip au survol
+        let tip=document.getElementById('research-tooltip');
+        rb.addEventListener('mouseenter',()=>{
+          if(!tip) return;
+          let detail=r.details?r.details[lv]:'';
+          tip.innerHTML='<b style="color:#88ee44">'+r.name+' — Niveau '+(lv+1)+'/'+r.levels+'</b><br><br>'+
+            detail.replace(/\n/g,'<br>')+'<br><br>'+
+            '<span style="color:#d4a820">Cout: '+(cost.g||0)+' or / '+(cost.w||0)+' bois / '+(cost.sc||0)+' sc</span><br>'+
+            '<span style="color:#88aaff">Temps: '+r.time[lv]+' ticks</span>';
+          tip.style.display='block';
+        });
+        rb.addEventListener('mouseleave',()=>{if(tip)tip.style.display='none';});
+        ap.appendChild(rb);
+      }
+    });
+  }
+  if(isBuilding(e)&&e.buildDone&&e.team===myT()){
+    // Bouton reparer (si PV pas pleins)
+    if(e.hp<e.maxHp){
+      let cost=BCOST[e.type]||{g:0,w:0,s:0};
+      let rc={g:Math.ceil((cost.g||0)*.25),w:Math.ceil((cost.w||0)*.25),s:Math.ceil((cost.s||0)*.25)};
+      let canRep=res.g>=rc.g&&res.w>=rc.w&&res.s>=rc.s&&!e.repairing;
+      let repLabel=e.repairing?'En reparation...':'Reparer';
+      let repCost=rc.g+'or '+rc.w+'bois'+( rc.s>0?' '+rc.s+'pierre':'');
+      gbtn(ap,repLabel,repCost,()=>cmdRepair(e),!canRep||e.repairing);
+    }
+    // Bouton demolir (sauf base)
+    if(e.type!=='base'){
+      if(e.type!=='barracks') gbtn(ap,'Demolir','50% remb.',()=>cmdDemolish(e));
+    }
+  }
+}
+function gbtn(parent,label,cost,cb,disabled){
+  let b=document.createElement('button');b.className='abtn';
+  b.innerHTML=label+(cost?'<small>'+cost+'</small>':'');
+  if(disabled)b.setAttribute('disabled','');
+  else b.addEventListener('click',ev=>{ev.stopPropagation();cb();_lsid='';});
+  parent.appendChild(b);
+  return b;
+}
+
+// Crée un groupe repliable dans act-panel
+// name: label du groupe, collapsed: replié par défaut
+function makeGroup(parent, name, collapsed){
+  let g=document.createElement('div');
+  g.className='act-group'+(collapsed?' collapsed':'');
+  let h=document.createElement('div');
+  h.className='act-group-header';
+  h.textContent=name;
+  h.addEventListener('click',()=>g.classList.toggle('collapsed'));
+  let body=document.createElement('div');
+  body.className='act-group-body';
+  g.appendChild(h);g.appendChild(body);
+  parent.appendChild(g);
+  return body; // retourne le conteneur des boutons
+}
+function log(msg,hi){
+  let d=document.createElement('div');d.className='lmsg'+(hi?' hi':'');d.textContent=msg;
+  let p=document.getElementById('log-panel');p.appendChild(d);
+  while(p.children.length>14)p.removeChild(p.children[1]);
+}
+
+const keys={};
+miniC.addEventListener('click',ev=>{if(!cam)return;let r=miniC.getBoundingClientRect();cam.x=(ev.clientX-r.left)/miniC.width*MW*TILE-canvas.width/2;cam.y=(ev.clientY-r.top)/miniC.height*MH*TILE-canvas.height/2;clampCam();});
+window.addEventListener('keydown',ev=>{
+  keys[ev.key]=true;
+  if(ev.key==='Escape'){
+    if(placeMode||rallyMode){cancelPlace();}
+    else if(loopRunning){openPause();}
+    else if(gamePaused){resumeGame();}
+  }
+});
+window.addEventListener('keyup',ev=>{keys[ev.key]=false;});
+window.addEventListener('mousemove',ev=>{
+  let r=canvas.getBoundingClientRect();mouse.sx=ev.clientX-r.left;mouse.sy=ev.clientY-r.top;
+  let w=s2w(mouse.sx,mouse.sy);mouse.wx=w.wx;mouse.wy=w.wy;
+  if(drag&&!placeMode&&ev.buttons===1){let dx=mouse.sx-drag.sx,dy=mouse.sy-drag.sy;if(Math.abs(dx)>5||Math.abs(dy)>5)dragRect={x:Math.min(mouse.sx,drag.sx),y:Math.min(mouse.sy,drag.sy),w:Math.abs(dx),h:Math.abs(dy)};}
+});
+window.addEventListener('mousedown',ev=>{
+  let r=canvas.getBoundingClientRect();
+  let onC=(ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom);
+  if(ev.button===0){
+    if(rallyMode){if(onC){ev.preventDefault();rallyMode.rallyX=mouse.wx;rallyMode.rallyY=mouse.wy;log('Point de ralliement place !');rallyMode=null;document.body.classList.remove('placing');_lsid='';}return;}
+    if(placeMode){if(onC){ev.preventDefault();doPlace(mouse.wx,mouse.wy);}return;}
+    if(!onC)return;drag={sx:mouse.sx,sy:mouse.sy};dragRect=null;
+  }
+  if(ev.button===2){
+    ev.preventDefault();if(placeMode||rallyMode){cancelPlace();return;}
+
+    if(!onC)return;
+    let tgt=entities.find(en=>{
+      if(isBuilding(en)){
+        let sz=bsz(en.type)*TILE;
+        return mouse.wx>=en.x && mouse.wx<=en.x+sz && mouse.wy>=en.y && mouse.wy<=en.y+sz;
+      } else {
+        let dx=en.x-mouse.wx,dy=en.y-mouse.wy;
+        return dx*dx+dy*dy<14*14;
+      }
+    });
+    if(tgt&&tgt.team!==myT()){
+      let units=sel.filter(e=>isUnit(e)&&e.team===myT());
+      units.forEach(e=>{e.state='attack';e.target=tgt;});
+      if(multiMode&&units.length) recordCmd({action:'attack',
+        ids:units.map(e=>e.id),targetId:tgt.id,
+        positions:units.map(e=>({id:e.id,x:Math.round(e.x),y:Math.round(e.y)}))
+      });
+    }
+    else{
+      let myUnits=sel.filter(e=>isUnit(e)&&e.team===myT());
+      // Chaque unité reçoit une destination décalée selon son index
+      // L'unité 0 va au point exact, les suivantes se placent autour
+      const SPREAD=[
+        [0,0],[1,0],[-1,0],[0,1],[1,1],[-1,1],[0,-1],[1,-1],[-1,-1],
+        [2,0],[-2,0],[0,2],[2,1],[-2,1],[2,-1],[-2,-1]
+      ];
+      myUnits.forEach((e,i)=>{
+        let [ox,oy]=SPREAD[i%SPREAD.length]||[0,0];
+        e.state='move';
+        e.target={x:mouse.wx+ox*TILE, y:mouse.wy+oy*TILE};
+        e._gt=null;
+      });
+      if(multiMode&&myUnits.length) recordCmd({action:'move',
+        units:myUnits.map((e,i)=>{
+          let [ox,oy]=SPREAD[i%SPREAD.length]||[0,0];
+          return {id:e.id, x:Math.round(e.x), y:Math.round(e.y),
+                  tx:mouse.wx+ox*TILE, ty:mouse.wy+oy*TILE};
+        })
+      });
+    }
+  }
+});
+window.addEventListener('mouseup',ev=>{
+  if(ev.button!==0||placeMode)return;
+  let r=canvas.getBoundingClientRect();let onC=(ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom);
+  if(!onC){drag=null;dragRect=null;return;}
+  if(dragRect&&(dragRect.w>5||dragRect.h>5)){
+    let{wx:x0,wy:y0}=s2w(dragRect.x,dragRect.y),{wx:x1,wy:y1}=s2w(dragRect.x+dragRect.w,dragRect.y+dragRect.h);
+    sel=entities.filter(e=>e.team===myT()&&isUnit(e)&&e.x>=x0&&e.x<=x1&&e.y>=y0&&e.y<=y1);
+  }else{
+    let clicked=entities.find(en=>{
+      if(isBuilding(en)){
+        // Detection rectangulaire sur toute la surface du batiment
+        let sz=bsz(en.type)*TILE;
+        return mouse.wx>=en.x && mouse.wx<=en.x+sz && mouse.wy>=en.y && mouse.wy<=en.y+sz;
+      } else {
+        // Detection circulaire pour les unites
+        let dx=en.x-mouse.wx,dy=en.y-mouse.wy;
+        return dx*dx+dy*dy<14*14;
+      }
+    });
+    if(clicked&&clicked.team===myT())sel=[clicked];else sel=[];
+  }
+  _lsid='';drag=null;dragRect=null;
+});
+window.addEventListener('contextmenu',ev=>ev.preventDefault());
+
+function clampCam(){if(!cam)return;let cw2=canvasW||canvas.width,ch2=canvasH||canvas.height;cam.x=Math.max(0,Math.min(MW*TILE-cw2,cam.x));cam.y=Math.max(0,Math.min(MH*TILE-ch2,cam.y));}
+function updateCam(){if(!cam)return;const s=12;if(keys['z']||keys['ArrowUp'])cam.y-=s;if(keys['s']||keys['ArrowDown'])cam.y+=s;if(keys['q']||keys['ArrowLeft'])cam.x-=s;if(keys['d']||keys['ArrowRight'])cam.x+=s;clampCam();}
+
+// Tick fixe à 20 fois/seconde (50ms) — indépendant du framerate
+// Garantit que les deux joueurs avancent au même rythme
+function loop(timestamp){
+  if(!loopRunning) return;
+  requestAnimationFrame(loop);
+
+  updateCam();
+  if(gstate==='playing'){
+    if(multiMode){
+      if(isHost){
+        // L'hôte simule tout et envoie les positions
+        applyRemoteCmds(frame);
+        tick();
+        maybeBroadcastCksum();
+        if(frame%3===0) broadcastPositions();
+      } else {
+        // Le client envoie ses commandes et tick() pour ses propres unités
+        flushCmds();
+        tick();
+      }
+    } else {
+      tick();
+    }
+  }
+
+  ctx.clearRect(0,0,canvasW||canvas.width,canvasH||canvas.height);
+  if(map&&cam&&entities){
+    drawMap();
+    [...entities].sort((a,b)=>a.y-b.y).forEach(e=>{isBuilding(e)?drawBuilding(e):drawUnit(e);});
+    drawPreview();drawRallyPreview();drawProjectiles();drawDrag();drawOverlay();
+    drawMini();
+  }
+  updateUI();
+}
+
+function startGameLoop(){
+  // no-op: loop() gère tout via requestAnimationFrame
+}
+
+resize();
+window.addEventListener('resize',()=>{resize();if(cam)clampCam();});
+
+// ── Auto-join via URL ?peer=ID ──
+window.addEventListener('load', function(){
+  let params=new URLSearchParams(location.search);
+  let p=params.get('peer')||params.get('join');
+  if(!p) return;
+
+  // Afficher un indicateur visible que l'auto-join est en cours
+  document.body.insertAdjacentHTML('beforeend',
+    '<div id="autojoin-notice" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#44cc22;color:#000;font-family:monospace;font-size:13px;padding:8px;text-align:center;">'+
+    '⏳ Connexion automatique en cours... code: '+p.substring(0,8)+'</div>');
+
+  // Aller au lobby
+  go('s-multi');
+
+  setTimeout(function(){
+    switchMultiRole('join');
+    let inp=document.getElementById('join-code-input');
+    if(inp) inp.value=p;
+    let notice=document.getElementById('autojoin-notice');
+    if(notice) notice.textContent='✓ Code rempli — attente PeerJS...';
+  }, 300);
+
+  let attempts=0;
+  let wait=setInterval(function(){
+    attempts++;
+    let notice=document.getElementById('autojoin-notice');
+    if(peerReady){
+      clearInterval(wait);
+      if(notice) notice.textContent='✓ PeerJS prêt — connexion...';
+      setTimeout(function(){
+        joinRoom();
+        setTimeout(function(){ let n=document.getElementById('autojoin-notice'); if(n) n.remove(); }, 3000);
+      }, 300);
+    }
+    if(attempts>200){
+      clearInterval(wait);
+      if(notice) notice.style.background='#cc4422';
+      if(notice) notice.textContent='⚠ Timeout PeerJS — connectez-vous manuellement';
+    }
+  },100);
+});
+// ══════════════════════════════════════════════
+// P2P MULTIJOUEUR v0.3 — PeerJS Lock-Step
+// 2-10 joueurs, RNG seeded, checksum sync
+// ══════════════════════════════════════════════
+
+// ─── RNG Global Seeded ───────────────────────
+let _gRng = null;
+function seededRandom(seed){
+  let s = seed >>> 0;
+  return function(){ s = (Math.imul(1664525,s)+1013904223)>>>0; return s/4294967296; };
+}
+function rng(){ return _gRng ? _gRng() : Math.random(); }
+function ri(n){ return Math.floor(rng()*n); }
+
+// ─── Couleurs joueurs (10 max) ───────────────
+const PLAYER_COLORS = [
+  {unit:'#44cc22',build:'#336622',build2:'#4a9a3a',mini:'#44ff44',label:'Vert'},
+  {unit:'#2266ee',build:'#223366',build2:'#3a4a9a',mini:'#4488ff',label:'Bleu'},
+  {unit:'#cc2244',build:'#662233',build2:'#9a3a4a',mini:'#ff4466',label:'Rouge'},
+  {unit:'#d4a820',build:'#5a4a10',build2:'#8a7020',mini:'#ffd040',label:'Or'},
+  {unit:'#22cccc',build:'#226666',build2:'#3a9a9a',mini:'#44ffff',label:'Cyan'},
+  {unit:'#aa22ee',build:'#5a2266',build2:'#7a3a9a',mini:'#cc44ff',label:'Violet'},
+  {unit:'#ee7722',build:'#664422',build2:'#9a6a3a',mini:'#ff9944',label:'Orange'},
+  {unit:'#ee22aa',build:'#662255',build2:'#9a3a7a',mini:'#ff44cc',label:'Rose'},
+  {unit:'#cccccc',build:'#666666',build2:'#9a9a9a',mini:'#ffffff',label:'Blanc'},
+  {unit:'#aaee22',build:'#556622',build2:'#7a9a3a',mini:'#ccff44',label:'Lime'},
+];
+
+function myT(){ return multiMode ? 'p'+myPlayerIndex : 'p'; }
+function playerTeam(idx){ return 'p'+idx; }
+function isHumanTeam(t){ return t==='p' || (t && t[0]==='p' && t.length>=2); }
+function teamColor(t){
+  if(!isHumanTeam(t)) return {unit:'#cc2222',build:'#662222',build2:'#9a3a3a',mini:'#ff4444',label:'IA'};
+  if(t==='p') return PLAYER_COLORS[0];
+  let i=parseInt(t.slice(1)); return PLAYER_COLORS[i%PLAYER_COLORS.length];
+}
+
+// ─── Checksum ────────────────────────────────
+const CKSUM_INTERVAL=60;
+let lastCksum=0, cksumMismatches=0;
+function computeChecksum(){
+  if(!entities) return 0;
+  let h=0;
+  for(let e of entities) h=(h*31+Math.round(e.x)*7+Math.round(e.y)*13+Math.round(e.hp)*17+e.id*3)>>>0;
+  return h;
+}
+function maybeBroadcastCksum(){
+  if(!multiMode||frame<=0||frame%CKSUM_INTERVAL!==0) return;
+  lastCksum=frame;
+  sendToPeers({type:'cksum',frame,hash:computeChecksum()});
+}
+
+function broadcastPositions(){
+  if(!entities||!isHost) return;
+  // Envoyer les positions de toutes les unités en mouvement
+  let pos=entities
+    .filter(e=>isHumanTeam(e.team)&&(e.state!=='idle'||isBuilding(e)))
+    .map(e=>({
+      id:e.id, x:Math.round(e.x*10)/10, y:Math.round(e.y*10)/10,
+      state:e.state, hp:Math.round(e.hp),
+      tx:e.target?Math.round(e.target.x):null,
+      ty:e.target?Math.round(e.target.y):null
+    }));
+  if(pos.length>0) sendToAll({type:'positions',pos,frame});
+}
+
+// ─── Variables P2P ───────────────────────────
+let peer=null, myPeerId=null, myPeerName='Joueur';
+let isHost=false, peerReady=false;
+let hostConn=null, guestConns=[];
+let totalPlayers=2, myPlayerIndex=0;
+
+// ─── Lock-Step ───────────────────────────────
+let multiMode=false;
+let cmdBuffer={}, remoteBuffer={}, localCmdsThisFrame={}; 
+
+let multiGamePending=null;
+
+// ─── Helpers UI ──────────────────────────────
+function setPeerStatus(msg,color){
+  let el=document.getElementById('peer-status');
+  if(el){el.textContent='● '+msg;el.style.color=color||'#888';}
+}
+function setJoinStatus(msg,color){
+  let el=document.getElementById('join-status');
+  if(el){el.textContent=msg;el.style.color=color||'#888';}
+}
+function rbNb(el){
+  document.getElementById('multi-nb-grp').querySelectorAll('.rbtn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  totalPlayers=parseInt(el.dataset.v);
+  updateWaitText();
+}
+function getTargetNb(){
+  // Lire depuis la variable (plus fiable que le DOM)
+  let el=document.querySelector('#multi-nb-grp .rbtn.on');
+  let nb = el ? parseInt(el.dataset.v) : totalPlayers;
+  totalPlayers = nb; // sync
+  return nb;
+}
+function updateWaitText(){
+  let nb=getTargetNb(), connected=1+guestConns.length;
+  let el=document.getElementById('multi-wait-txt');
+  if(el) el.textContent=connected+'/'+nb+' joueur(s) — '+(connected>=nb?'✓ Prêt!':'En attente...');
+  let btn=document.getElementById('multi-launch-btn');
+  if(btn){
+    let ready=peerReady&&connected>=nb;
+    btn.disabled=!ready; btn.style.opacity=ready?'1':'.5'; btn.style.cursor=ready?'pointer':'not-allowed';
+  }
+}
+function switchMultiRole(role){
+  document.getElementById('multi-role').querySelectorAll('.rbtn').forEach(b=>b.classList.remove('on'));
+  let btn=document.querySelector('#multi-role [data-v="'+role+'"]');
+  if(btn) btn.classList.add('on');
+  document.getElementById('host-panel').style.display=role==='host'?'':'none';
+  document.getElementById('join-panel').style.display=role==='join'?'':'none';
+}
+function refreshPlayerList(){
+  let pl=document.getElementById('plist'); if(!pl)return;
+  let html='<div class="pslot"><div class="pdot live" style="background:'+PLAYER_COLORS[0].unit+'"></div> '+(myPeerName||'Vous')+' (Hôte)</div>';
+  guestConns.forEach((c,i)=>{
+    let col=PLAYER_COLORS[(i+1)%PLAYER_COLORS.length];
+    html+='<div class="pslot"><div class="pdot live" style="background:'+col.unit+'"></div> '+(c._albatronName||'Joueur '+(i+2))+'</div>';
+  });
+  pl.innerHTML=html;
+}
+
+// ─── PeerJS ──────────────────────────────────
+function initPeer(){
+  destroyPeer(); isHost=true;
+  let adj=['Vert','Rouge','Bleu','Or','Fer','Pierre','Acier','Cuivre'];
+  let nn=['Aigle','Loup','Ours','Renard','Faucon','Dragon','Tigre','Lynx'];
+  myPeerName=adj[Math.floor(Math.random()*adj.length)]+nn[Math.floor(Math.random()*nn.length)];
+  let ns=document.getElementById('host-name-slot');
+  if(ns) ns.textContent=myPeerName+' (Hôte)';
+  setPeerStatus('Connexion...','#888');
+  try{
+    peer=new Peer({debug:0,config:{iceServers:[
+      {urls:'stun:stun.l.google.com:19302'},
+      {urls:'stun:stun1.l.google.com:19302'},
+    ]}});
+  }catch(e){ setPeerStatus('Erreur: '+e.message,'#cc4444'); return; }
+  let t=setTimeout(()=>{ if(!peerReady){ setPeerStatus('Timeout serveur','#cc4444'); addChat('⚠ Serveur P2P inaccessible.','sys'); }},10000);
+  peer.on('open',id=>{
+    clearTimeout(t); myPeerId=id; peerReady=true;
+    let short=id.substring(0,8).toUpperCase();
+    let rc=document.getElementById('room-code'); if(rc){rc.textContent=short;rc.title=id;}
+    let il=document.getElementById('inv-link'); if(il) il.textContent=location.href.split('?')[0]+'?peer='+id;
+    setPeerStatus('✓ Prêt — '+short,'#44cc22');
+    addChat('Salon créé! Code: '+short,'sys');
+    updateWaitText();
+  });
+  peer.on('connection',conn=>{
+    if(guestConns.length>=getTargetNb()-1){conn.on('open',()=>conn.send({type:'rejected',reason:'Salon plein'}));return;}
+    setupGuestConn(conn);
+  });
+  peer.on('error',err=>{ setPeerStatus('Erreur: '+err.type,'#cc4444'); addChat('Erreur P2P ('+err.type+')','sys'); });
+  peer.on('disconnected',()=>{ setPeerStatus('Déconnecté','#cc4444'); try{peer.reconnect();}catch(e){} });
+}
+function destroyPeer(){
+  hostConn=null; guestConns=[]; peerReady=false; myPeerId=null;
+  if(peer){try{peer.destroy();}catch(e){} peer=null;}
+}
+function setupGuestConn(conn){
+  conn._playerIndex=1+guestConns.length;
+  conn.on('open',()=>{
+    guestConns.push(conn);
+    addChat('Joueur '+(conn._playerIndex+1)+' connecté!','sys');
+    refreshPlayerList(); updateWaitText();
+  });
+  conn.on('data',data=>handlePeerData(data,conn,false));
+  conn.on('close',()=>{ guestConns=guestConns.filter(c=>c!==conn); refreshPlayerList(); updateWaitText(); if(loopRunning) addIngameChat('Joueur déconnecté.','sys'); });
+  conn.on('error',err=>addChat('Erreur: '+err.message,'sys'));
+}
+function joinRoom(){
+  let inp=document.getElementById('join-code-input'); if(!inp)return;
+  let targetId=inp.value.trim();
+  if(targetId.startsWith('http')){try{targetId=new URL(targetId).searchParams.get('peer')||targetId;}catch(e){}}
+  if(targetId.length<8){setJoinStatus('ID invalide.','#cc4444');return;}
+  if(!peer||!myPeerId){setJoinStatus('PeerJS pas prêt, patientez...','#888');setTimeout(()=>joinRoom(),1000);return;}
+  isHost=false; setJoinStatus('Connexion...','#888');
+  let t=setTimeout(()=>setJoinStatus('Timeout — hôte introuvable.','#cc4444'),10000);
+  let conn=peer.connect(targetId,{reliable:true,serialization:'json'});
+  hostConn=conn;
+  conn.on('open',()=>{
+    clearTimeout(t); setJoinStatus('✓ Connecté!','#44cc22');
+    addChat('Connecté à l’hôte!','sys');
+    conn.send({type:'hello',name:myPeerName});
+  });
+  conn.on('data',data=>handlePeerData(data,conn,true));
+  conn.on('close',()=>{ clearTimeout(t); setJoinStatus('Déconnecté.','#cc4444'); if(loopRunning) addIngameChat('Hôte déconnecté.','sys'); });
+  conn.on('error',err=>{ clearTimeout(t); setJoinStatus('Erreur: '+err.type,'#cc4444'); });
+}
+
+// ─── Messages P2P ────────────────────────────
+function handlePeerData(data,conn,fromHost){
+  if(!data||!data.type)return;
+  switch(data.type){
+    case 'rejected': setJoinStatus('Refusé: '+data.reason,'#cc4444'); break;
+    case 'hello':
+      if(!fromHost){
+        conn._albatronName=data.name||'Client'; refreshPlayerList();
+        addChat(data.name+' a rejoint (P'+(conn._playerIndex+1)+').','sys');
+        conn.send({type:'welcome',playerIndex:conn._playerIndex,name:myPeerName});
+      } break;
+    case 'welcome':
+      if(fromHost){ myPlayerIndex=data.playerIndex; setJoinStatus('✓ P'+(data.playerIndex+1)+' ('+PLAYER_COLORS[data.playerIndex].label+')','#44cc22'); } break;
+    case 'chat':
+      if(loopRunning) addIngameChat(data.msg,'msg',data.name);
+      else addChat(data.msg,'msg',data.name);
+      if(isHost) guestConns.filter(c=>c!==conn).forEach(c=>{try{c.send(data);}catch(e){}});
+      break;
+    case 'game_start':
+      if(fromHost){ setTimeout(()=>{ hostConn.send({type:'ready'}); launchMultiGame(data.config,data.seed,data.playerIndex,data.totalPlayers); },100); } break;
+    case 'ready':
+      if(!fromHost){ conn._ready=true; if(guestConns.every(c=>c._ready)&&multiGamePending){ let{config,seed}=multiGamePending; multiGamePending=null; launchMultiGame(config,seed,0,getTargetNb()); } } break;
+    case 'cmd':
+      { let pi=data.playerIndex;
+        let team=playerTeam(pi);
+        // Appliquer immédiatement
+        (data.cmds||[]).forEach(cmd=>applyCmd(cmd,team));
+        // Relayer si hôte (topologie étoile)
+        if(isHost) guestConns.filter(c=>c._playerIndex!==pi).forEach(c=>{try{c.send(data);}catch(e){}});
+      } break;
+
+    case 'positions':
+      // Reçu par le client depuis l'hôte: corriger les positions
+      if(!isHost && entities && data.pos){
+        data.pos.forEach(p=>{
+          let e=entities.find(x=>x.id===p.id);
+          if(e){
+            // Correction directe pour les unités adverses
+            // Interpolation douce pour les unités du joueur local
+            if(e.team===myT()){
+              e.x+=(p.x-e.x)*0.15;
+              e.y+=(p.y-e.y)*0.15;
+            } else {
+              e.x=p.x; e.y=p.y;
+            }
+            e.hp=p.hp;
+            if(p.tx!==null && e.team!==myT()){
+              e.state=p.state;
+              e.target=e.target||{};
+              e.target.x=p.tx; e.target.y=p.ty;
+            }
+          }
+        });
+      }
+      break;
+    case 'cksum':
+      if(data.frame===lastCksum&&data.hash!==undefined){
+        if(data.hash!==computeChecksum()){ cksumMismatches++; if(cksumMismatches<=3) addIngameChat('⚠ Désync frame '+data.frame,'sys'); }
+        if(isHost) guestConns.filter(c=>c!==conn).forEach(c=>{try{c.send(data);}catch(e){}});
+      } break;
+  }
+}
+function sendToAll(data){ guestConns.forEach(c=>{try{if(c.open)c.send(data);}catch(e){}}); }
+function sendToHost(data){ try{if(hostConn&&hostConn.open)hostConn.send(data);}catch(e){} }
+function sendToPeers(data){ if(isHost) sendToAll(data); else sendToHost(data); }
+
+// ─── Lancement multi ─────────────────────────
+function launchMultiHost(config){
+  let nb=getTargetNb(), seed=Math.floor(Math.random()*2147483647);
+  multiGamePending={config,seed};
+  guestConns.forEach(conn=>conn.send({type:'game_start',config,seed,playerIndex:conn._playerIndex,totalPlayers:nb}));
+  if(guestConns.length===0){ launchMultiGame(config,seed,0,nb); multiGamePending=null; return; }
+  setTimeout(()=>{ if(multiGamePending){let{config:c,seed:s}=multiGamePending;multiGamePending=null;launchMultiGame(c,s,0,nb);}},4000);
+}
+function launchMultiGame(config,seed,playerIndex,nbPlayers){
+  multiMode=true; myPlayerIndex=playerIndex; totalPlayers=nbPlayers||2;
+  cmdBuffer={}; remoteBuffer={}; localCmdsThisFrame=[];
+  cksumMismatches=0; lastCksum=0;
+  let cp=document.getElementById('ingame-chat-panel'); if(cp)cp.style.display='flex';
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('game-ui').style.display='block';
+  resize();
+  // Réenregistrer les touch events après affichage du canvas (Safari iOS)
+  if(isMobile) setTimeout(()=>{ setupTouchCanvas(); setupTouchOrderBtn(); }, 50); initGameMulti(config,seed,playerIndex,nbPlayers);
+  if(!loopRunning){loopRunning=true;startGameLoop();requestAnimationFrame(loop);}
+}
+function recordCmd(cmd){
+  if(!multiMode) return;
+  // Envoyer immédiatement aux autres joueurs
+  let data={type:'cmd',frame:frame,cmds:[cmd],playerIndex:myPlayerIndex};
+  sendToPeers(data);
+}
+function flushCmds(){ /* no-op: envoi immédiat dans recordCmd */ }
+function applyRemoteCmds(f){
+  // no-op: cmds appliquées immédiatement à la réception dans handlePeerData
+}
+function applyCmd(cmd,team){
+  if(!entities)return;
+  switch(cmd.action){
+    case 'move':
+      if(cmd.units){
+        // Nouvelle version: destinations individuelles avec positions de départ
+        cmd.units.forEach(u=>{
+          let e=entities.find(x=>x.id===u.id&&x.team===team);
+          if(e){
+            e.x=u.x; e.y=u.y; // resync position de départ
+            e.state='move'; e.target={x:u.tx,y:u.ty}; e._gt=null;
+          }
+        });
+      } else {
+        // Ancienne version: compatibilité
+        (cmd.ids||[]).forEach(id=>{
+          let e=entities.find(x=>x.id===id&&x.team===team);
+          if(e){
+            if(cmd.positions){let p=cmd.positions.find(p=>p.id===id);if(p){e.x=p.x;e.y=p.y;}}
+            e.state='move'; e.target={x:cmd.x,y:cmd.y}; e._gt=null;
+          }
+        });
+      }
+      break;
+    case 'attack':
+      cmd.ids.forEach(id=>{
+        let e=entities.find(x=>x.id===id&&x.team===team);
+        let t=entities.find(x=>x.id===cmd.targetId);
+        if(e&&t){
+          if(cmd.positions){let p=cmd.positions.find(p=>p.id===id);if(p){e.x=p.x;e.y=p.y;}}
+          e.state='attack'; e.target=t;
+        }
+      }); break;
+    case 'gather': cmd.ids.forEach(id=>{let e=entities.find(x=>x.id===id&&x.team===team);if(e){e.state=cmd.gatherType;e.task=null;e._gt=cmd.gatherType;e.progress=0;}}); break;
+    case 'build': {let v=entities.find(x=>x.id===cmd.villagerId&&x.team===team);let s=spawn(cmd.btype,cmd.x,cmd.y,team);s.buildDone=false;s.buildProgress=0;s.hp=1;s.maxHp=Math.round((BMHP[cmd.btype]||200)*resBonusHP(cmd.btype));s.rallyX=cmd.x+bsz(cmd.btype)*TILE/2;s.rallyY=cmd.y+bsz(cmd.btype)*TILE+1;if(cmd.btype==='mine'){s.mineResource=cmd.mineRes;s.mineralCount=cmd.mineralCount||1;}if(v&&v.hp>0){v.state='build';v.task={siteId:s.id};v.progress=0;}} break;
+    case 'train': {let b=entities.find(x=>x.id===cmd.buildingId&&x.team===team);if(b&&!b.training){b.training={type:cmd.unitType,...TCOST[cmd.unitType]};b.trainTimer=0;}} break;
+    case 'rally': {let b=entities.find(x=>x.id===cmd.buildingId&&x.team===team);if(b){b.rallyX=cmd.x;b.rallyY=cmd.y;}} break;
+  }
+}
+// ══════════════════════════════════════════════
+// SUPPORT MOBILE — Tactile & D-pad
+// ══════════════════════════════════════════════
+
+
+// ─── Minimap overlay mobile ───────────────────
+let minimapVisible = false;
+function toggleMinimap(){
+  minimapVisible = !minimapVisible;
+  let ov = document.getElementById('minimap-overlay');
+  let btn = document.getElementById('minimap-toggle');
+  if(ov){
+    ov.classList.toggle('visible', minimapVisible);
+    // Dessiner la minimap dans l'overlay quand on l'ouvre
+    if(minimapVisible) drawMobileMap();
+  }
+  if(btn) btn.classList.toggle('map-open', minimapVisible);
+}
+
+function drawMobileMap(){
+  let mc = document.getElementById('minimapMobile');
+  if(!mc || !map) return;
+  // Taille proportionnelle à l'écran
+  let W = Math.round(window.innerWidth * 0.42);
+  let H = Math.round(W * MH / MW);
+  mc.width = W; mc.height = H;
+  let sw = W/MW, sh = H/MH;
+  let mx = mc.getContext('2d');
+  mx.clearRect(0,0,W,H);
+  const MC={0:'#2a4a10',1:'#163208',2:'#0a1e3a',3:'#5a4a10',4:'#3a3a3a'};
+  for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+    mx.fillStyle=MC[map[y][x]]||'#2a4a10';
+    mx.fillRect(x*sw,y*sh,Math.ceil(sw)+1,Math.ceil(sh)+1);
+  }
+  if(entities) entities.forEach(e=>{
+    mx.fillStyle=isHumanTeam(e.team)?teamColor(e.team).mini:'#ff4444';
+    mx.fillRect(e.x/TILE*sw-1,e.y/TILE*sh-1,isBuilding(e)?4:2,isBuilding(e)?4:2);
+  });
+  // Viewport
+  if(cam){
+    mx.strokeStyle='#ffffff55';mx.lineWidth=1;
+    mx.strokeRect(cam.x/TILE*sw,cam.y/TILE*sh,(canvasW||canvas.width)/TILE*sw,(canvasH||canvas.height)/TILE*sh);
+  }
+  // Tap sur la minimap pour naviguer
+  mc.onclick = function(ev){
+    let r = mc.getBoundingClientRect();
+    let px = (ev.clientX-r.left)/mc.width*MW*TILE;
+    let py = (ev.clientY-r.top)/mc.height*MH*TILE;
+    if(cam){ cam.x=px-(canvasW||canvas.width)/2; cam.y=py-(canvasH||canvas.height)/2; clampCam(); }
+  };
+}
+
+// ─── D-pad virtuel ───────────────────────────
+function dpadStart(k){ keys[k]=true; }
+function dpadStop(k){ keys[k]=false; }
+
+// ─── Mode ordre tactile ───────────────────────
+// Sur mobile, un bouton "⚔" remplace le clic droit
+let touchOrderMode = false;
+function setupTouchOrderBtn(){
+  let btn = document.getElementById('touch-order-btn');
+  if(!btn) return;
+  btn.addEventListener('touchend', e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    touchOrderMode = !touchOrderMode;
+    btn.classList.toggle('active', touchOrderMode);
+    btn.textContent = touchOrderMode ? '✓' : '⚔';
+  });
+}
+
+// ─── Touch sur le canvas ─────────────────────
+function setupTouchCanvas(){
+  const c = document.getElementById('gameCanvas');
+  if(!c) return;
+
+  // Eviter les doublons d'event listeners
+
+
+  let _lastTapTime = 0;
+  let _lastTapX = 0;
+  let _lastTapY = 0;
+  let _deselTimer = null;
+
+  c.addEventListener('touchstart', e=>{
+    const t=e.changedTouches[0]; if(!t) return;
+    if(e.cancelable) e.preventDefault();
+    const r = c.getBoundingClientRect();
+    mouse.sx = t.clientX - r.left;
+    mouse.sy = t.clientY - r.top;
+    const w = s2w(mouse.sx, mouse.sy);
+    mouse.wx = w.wx; mouse.wy = w.wy;
+
+    if(placeMode){ doPlace(mouse.wx, mouse.wy); return; }
+    if(rallyMode){
+      rallyMode.rallyX=mouse.wx; rallyMode.rallyY=mouse.wy;
+      log('Point de ralliement placé!'); rallyMode=null;
+      document.body.classList.remove('placing'); _lsid='';
+      return;
+    }
+    drag = {sx:mouse.sx, sy:mouse.sy};
+    dragRect = null;
+  }, {passive:false});
+
+  c.addEventListener('touchmove', e=>{
+    const t=e.changedTouches[0]; if(!t) return;
+    const r = c.getBoundingClientRect();
+    e.preventDefault();
+    mouse.sx = t.clientX - r.left;
+    mouse.sy = t.clientY - r.top;
+    const w = s2w(mouse.sx, mouse.sy);
+    mouse.wx = w.wx; mouse.wy = w.wy;
+    if(drag && !placeMode){
+      let dx=mouse.sx-drag.sx, dy=mouse.sy-drag.sy;
+      if(Math.abs(dx)>8||Math.abs(dy)>8)
+        dragRect={x:Math.min(mouse.sx,drag.sx),y:Math.min(mouse.sy,drag.sy),w:Math.abs(dx),h:Math.abs(dy)};
+    }
+  }, {passive:false});
+
+  c.addEventListener('touchend', e=>{
+    if(e.cancelable) e.preventDefault();
+    const t0=e.changedTouches[0]; if(!t0) return;
+    const r = c.getBoundingClientRect();
+    mouse.sx = t0.clientX - r.left;
+    mouse.sy = t0.clientY - r.top;
+    const w = s2w(mouse.sx, mouse.sy);
+    mouse.wx = w.wx; mouse.wy = w.wy;
+
+    // Glisser → sélection rectangulaire
+    if(dragRect && (dragRect.w>10||dragRect.h>10)){
+      let{wx:x0,wy:y0}=s2w(dragRect.x,dragRect.y);
+      let{wx:x1,wy:y1}=s2w(dragRect.x+dragRect.w,dragRect.y+dragRect.h);
+      sel=entities.filter(en=>en.team===myT()&&isUnit(en)&&en.x>=x0&&en.x<=x1&&en.y>=y0&&en.y<=y1);
+      drag=null; dragRect=null; _lsid=''; return;
+    }
+    drag=null; dragRect=null;
+
+    const now = Date.now();
+    const ddx = mouse.sx - _lastTapX;
+    const ddy = mouse.sy - _lastTapY;
+    const nearSameSpot = ddx*ddx+ddy*ddy < 50*50;
+    const isDoubleTap = (now - _lastTapTime) < 380 && nearSameSpot;
+
+    // Annuler la désélection en attente si double-tap détecté
+    if(_deselTimer){ clearTimeout(_deselTimer); _deselTimer=null; }
+
+    _lastTapTime = now;
+    _lastTapX = mouse.sx;
+    _lastTapY = mouse.sy;
+
+    const myTeam = myT();
+    const hasSel = sel.length>0 && sel.some(e=>isUnit(e)&&e.team===myTeam);
+
+    // Entité sous le doigt
+    let touched = entities && entities.find(en=>{
+      if(isBuilding(en)){
+        let sz=bsz(en.type)*TILE;
+        return mouse.wx>=en.x&&mouse.wx<=en.x+sz&&mouse.wy>=en.y&&mouse.wy<=en.y+sz;
+      }
+      let dx=en.x-mouse.wx, dy=en.y-mouse.wy;
+      return dx*dx+dy*dy < 28*28;
+    });
+
+    if(isDoubleTap){
+      // ── DOUBLE TAP : ordre ──
+      if(touched && touched.team!==myTeam && hasSel){
+        let units=sel.filter(e=>isUnit(e)&&e.team===myTeam);
+        units.forEach(e=>{ e.state='attack'; e.target=touched; });
+        if(multiMode&&units.length) recordCmd({
+          action:'attack', ids:units.map(e=>e.id), targetId:touched.id,
+          positions:units.map(e=>({id:e.id,x:Math.round(e.x),y:Math.round(e.y)}))
+        });
+      } else if(hasSel){
+        // Double-tap sur zone vide → déplacer avec positions décalées par index
+        let myUnits=sel.filter(e=>isUnit(e)&&e.team===myTeam);
+        const SPREAD=[
+          [0,0],[1,0],[-1,0],[0,1],[1,1],[-1,1],[0,-1],[1,-1],[-1,-1],
+          [2,0],[-2,0],[0,2],[2,1],[-2,1],[2,-1],[-2,-1]
+        ];
+        myUnits.forEach((e,i)=>{
+          let [ox,oy]=SPREAD[i%SPREAD.length]||[0,0];
+          e.state='move'; e.target={x:mouse.wx+ox*TILE, y:mouse.wy+oy*TILE}; e._gt=null;
+        });
+        if(multiMode&&myUnits.length) recordCmd({
+          action:'move',
+          units:myUnits.map((e,i)=>{
+            let [ox,oy]=SPREAD[i%SPREAD.length]||[0,0];
+            return {id:e.id, x:Math.round(e.x), y:Math.round(e.y),
+                    tx:mouse.wx+ox*TILE, ty:mouse.wy+oy*TILE};
+          })
+        });
+      }
+    } else {
+      // ── TAP SIMPLE ──
+      if(touched && touched.team===myTeam){
+        // Tap sur allié → sélectionner immédiatement
+        sel=[touched]; _lsid='';
+      } else if(!touched && hasSel){
+        // Tap sur zone vide avec sélection → attendre 380ms
+        // Si un 2e tap arrive entre-temps, l'ordre sera donné sans désélectionner
+        _deselTimer = setTimeout(()=>{
+          sel=[]; _lsid=''; _deselTimer=null;
+        }, 380);
+      } else if(!touched){
+        sel=[]; _lsid='';
+      }
+    }
+  }, {passive:false});
+}
+
+// ─── Resize mobile : plein écran adaptatif ───
+function resizeMobile(){
+  if(!isMobile) return;
+  let tb = document.getElementById('topbar');
+  let bottom = document.getElementById('bottom');
+  if(!tb || !canvas) return;
+  let tbH = tb.offsetHeight || 36;
+  let btH = (bottom ? bottom.offsetHeight : 140) || 140;
+  // Canvas pleine largeur, hauteur = écran - topbar - bottom
+  canvasW = window.innerWidth;
+  canvasH = window.innerHeight - tbH - btH;
+  canvas.style.top    = tbH + 'px';
+  canvas.style.left   = '0';
+  canvas.style.right  = '0';
+  canvas.style.width  = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  canvas.width  = canvasW;
+  canvas.height = canvasH;
+  // Minimap petit canvas
+  if(miniC){ miniC.width=218; miniC.height=Math.round(218*MH/MW); }
+  if(cam) clampCam();
+  // Repositionner overlay minimap
+  let ov = document.getElementById('minimap-overlay');
+  if(ov) ov.style.top = tbH + 'px';
+  let btn = document.getElementById('minimap-toggle');
+  if(btn) btn.style.top = (tbH+4) + 'px';
+}
+
+// ─── Init mobile ─────────────────────────────
+window.addEventListener('load', function(){
+  if(isMobile){
+    window.addEventListener('resize', ()=>{ resizeMobile(); });
+    window.addEventListener('orientationchange', ()=>{
+      setTimeout(()=>{ resizeMobile(); if(cam)clampCam(); }, 100);
+    });
+
+  }
+});
+</script>
+
+<!-- ══════════════════════════════════════ -->
+<!-- PAUSE OVERLAY                        -->
+<!-- ══════════════════════════════════════ -->
+<div id="pause-overlay">
+  <div id="pause-panel">
+    <div class="pause-title">PAUSE</div>
+    <div class="pause-tag">ALBATRON RTS &middot; PARTIE EN COURS</div>
+    <div class="pmenu-zone">
+      <button class="pmbtn resume" onclick="resumeGame()">&#9654; &nbsp; REPRENDRE</button>
+      <button class="pmbtn" onclick="pauseGoOptions()">&#9881; &nbsp; OPTIONS</button>
+      <button class="pmbtn quit" onclick="quitToMain()">&#8617; &nbsp; QUITTER LA PARTIE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Chat in-game ───────────────────────────────
+function addIngameChat(msg, type, name){
+  let el = document.getElementById('ingame-chat-msg');
+  if(!el) return;
+  let d = document.createElement('div');
+  d.style.cssText = 'padding:1px 0;border-bottom:1px solid #0d1a0d;';
+  if(type==='sys'){
+    d.style.color = '#4a7a4a';
+    d.style.fontStyle = 'italic';
+    d.textContent = '⚙ ' + msg;
+  } else {
+    let col = '#44cc22';
+    // Couleur selon le nom du joueur (hash simple)
+    if(name && name!=='Vous'){
+      let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))&0xffff;
+      const COLS=['#44cc22','#4488ff','#ffcc44','#44dddd','#cc44ff','#ff8844','#ff44aa','#aaee22'];
+      col = COLS[h % COLS.length];
+    }
+    d.innerHTML = '<span style="color:'+col+';font-weight:500;">['+( name||'Vous')+']</span> <span style="color:#c8d8a0;">'+msg.replace(/</g,'&lt;')+'</span>';
+  }
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+  // Limiter à 60 messages
+  while(el.children.length > 60) el.removeChild(el.firstChild);
+}
+
+function sendIngameChat(){
+  let inp = document.getElementById('ingame-chat-input');
+  if(!inp || !inp.value.trim()) return;
+  let msg = inp.value.trim();
+  inp.value = '';
+  addIngameChat(msg, 'msg', 'Vous');
+  if(multiMode) sendToPeers({type:'chat', msg, name: myPeerName||('P'+(myPlayerIndex+1))});
+}
+
+// ── Pause ──────────────────────────────────────
+let gamePaused = false;
+let _optionsFromPause = false;
+
+function optionsBack(){
+  saveOpts();
+  if(_optionsFromPause){
+    _optionsFromPause = false;
+    document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+    document.getElementById('pause-overlay').classList.add('on');
+  } else {
+    go('s-main');
+  }
+}
+
+function openPause(){
+  gamePaused = true;
+  loopRunning = false;
+  document.getElementById('pause-overlay').classList.add('on');
+}
+
+function resumeGame(){
+  gamePaused = false;
+  document.getElementById('pause-overlay').classList.remove('on');
+  document.getElementById('game-ui').style.display = 'block';
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  loopRunning = true;
+  requestAnimationFrame(loop);
+}
+
+function pauseGoOptions(){
+  _optionsFromPause = true;
+  document.getElementById('pause-overlay').classList.remove('on');
+  document.getElementById('game-ui').style.display = 'none';
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('s-options').classList.add('on');
+}
+
+function pauseBackFromOptions(){
+  saveOpts();
+  _optionsFromPause = false;
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById('game-ui').style.display = 'block';
+  document.getElementById('pause-overlay').classList.add('on');
+}
+
+function quitToMain(){
+  gamePaused = false;
+  _optionsFromPause = false;
+  document.getElementById('pause-overlay').classList.remove('on');
+  document.getElementById('game-ui').style.display = 'none';
+  document.body.classList.remove('placing');
+  loopRunning = false;
+  go('s-main');
+}
+</script>
+</body>
+</html>
