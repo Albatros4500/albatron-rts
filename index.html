@@ -5717,14 +5717,24 @@ window.addEventListener('contextmenu',ev=>ev.preventDefault());
 function clampCam(){if(!cam)return;let cw2=canvasW||canvas.width,ch2=canvasH||canvas.height;cam.x=Math.max(0,Math.min(MW*TILE-cw2,cam.x));cam.y=Math.max(0,Math.min(MH*TILE-ch2,cam.y));}
 function updateCam(){if(!cam)return;const s=12;if(keys['z']||keys['ArrowUp'])cam.y-=s;if(keys['s']||keys['ArrowDown'])cam.y+=s;if(keys['q']||keys['ArrowLeft'])cam.x-=s;if(keys['d']||keys['ArrowRight'])cam.x+=s;clampCam();}
 
-// Tick fixe à 20 fois/seconde (50ms) — indépendant du framerate
-// Garantit que les deux joueurs avancent au même rythme
-let _tickFrac=0; // compteur fractionnaire : accumule gameSpeedMult par frame
+// Tick basé sur le temps réel écoulé (et non sur le nombre d'images affichées) —
+// un onglet mis en arrière-plan ou un appareil qui rame voit son framerate chuter,
+// mais le temps de simulation doit rester fidèle à l'horloge réelle pour ne pas
+// dériver par rapport aux autres joueurs (et provoquer un rattrapage brutal au retour).
+let _tickFrac=0; // compteur fractionnaire de ticks à exécuter
+let _lastLoopTs=null; // timestamp de la frame précédente
+const TICKS_PER_SEC=60; // rythme de référence (identique au comportement historique à 60 fps)
+const MAX_CATCHUP_MS=2000; // ne jamais rattraper plus de 2s d'un coup (onglet en arrière-plan, mise en veille...)
+const MAX_TICKS_PER_FRAME=200; // filet de sécurité supplémentaire contre une rafale de calcul trop longue
 let _drawBuf=null; // buffer de tri pré-alloué pour le rendu (évite alloc à 60fps)
 
 function loop(timestamp){
   if(!loopRunning) return;
   requestAnimationFrame(loop);
+
+  if(_lastLoopTs===null) _lastLoopTs=timestamp;
+  let dtMs=Math.max(0,Math.min(timestamp-_lastLoopTs,MAX_CATCHUP_MS));
+  _lastLoopTs=timestamp;
 
   updateCam();
   // L'hôte doit continuer à simuler/diffuser la partie tant qu'il reste
@@ -5732,10 +5742,9 @@ function loop(timestamp){
   // sinon la partie se fige pour les joueurs restants.
   let doTick = (gstate==='playing' || (multiMode && isHost && !multiMatchOver)) && !multiPaused;
   if(doTick){
-    // Accumule gameSpeedMult par frame (indépendant du framerate réel)
-    // Slow 0.6 → ~3 ticks/5 frames | Normal 1.0 → 1 tick/frame | Fast 1.5 → ~3 ticks/2 frames
-    _tickFrac+=gameSpeedMult;
-    let ticks=Math.min(Math.floor(_tickFrac+1e-9),3); // +epsilon évite 0.9999...→0
+    // Nombre de ticks proportionnel au temps réel écoulé (dtMs), pas au nombre de frames.
+    _tickFrac+=(dtMs/1000)*TICKS_PER_SEC*gameSpeedMult;
+    let ticks=Math.min(Math.floor(_tickFrac+1e-9),MAX_TICKS_PER_FRAME); // +epsilon évite 0.9999...→0
     _tickFrac-=ticks;
     for(let i=0;i<ticks;i++) tick();
     tickCritParticles();
@@ -6163,18 +6172,35 @@ function handlePeerData(data,conn,fromHost){
             }
             // Sinon : ne rien toucher (quasi-identique, éviter micro-jerks)
           }
-          // Toujours sync hp, state (sauf si on est en mouvement local), target
+          // Toujours sync hp ; state/target uniquement pour les unités qui NE
+          // M'APPARTIENNENT PAS — ma propre simulation locale fait déjà foi pour
+          // le comportement de mes propres unités (pas seulement en déplacement :
+          // récolte, livraison, construction...), sinon une correction de l'hôte
+          // en retard peut interrompre une action en cours avant qu'elle n'aboutisse
+          // (ex: livraison de ressources jamais créditée).
           e.hp=p.hp; e.maxHp=p.maxHp||e.maxHp||1;
-          if(!myUnitMoving){
+          if(!isMyUnit){
             e.state=p.state;
             e.target=p.tx!==null?{x:p.tx,y:p.ty}:null;
           }
-          if(p.carry) e.carry=p.carry;
+          // Pour les entités qui M'APPARTIENNENT, ma propre simulation locale fait
+          // déjà foi pour tout ce qui est progression/production (construction,
+          // récolte, entraînement, réparation, démolition) — appliquer la version
+          // de l'hôte ici écraserait ma progression avec une vue parfois en retard
+          // (désync temporaire), causant des ressources perdues ou des bâtiments
+          // qui semblent bloqués tant qu'on ne relance pas une action dessus.
+          let isMyEntity=e.team===myT();
+          if(p.carry && !isMyEntity) e.carry=p.carry;
           let wasDone=e.buildDone;
-          e.buildProgress=p.buildProgress||0;
-          if(p.progress!==undefined) e.progress=p.progress;
+          if(!isMyEntity){
+            e.buildProgress=p.buildProgress||0;
+            if(p.progress!==undefined) e.progress=p.progress;
+          }
           // Bâtiment vient de finir → invalider chemins + éjecter unités
-          if(!wasDone&&p.buildDone&&isBuilding(e)){
+          // (uniquement pertinent quand on adopte l'état de fin de l'hôte pour
+          // le bâtiment de QUELQU'UN D'AUTRE ; pour les miens, ma propre
+          // simulation locale a déjà géré l'éjection au moment voulu)
+          if(!wasDone&&p.buildDone&&isBuilding(e)&&!isMyEntity){
             invalidatePathsThroughBuilding(e);
             // Éjecter unités qui seraient dedans
             let sz2=bsz(e.type)*TILE;
@@ -6188,28 +6214,33 @@ function handlePeerData(data,conn,fromHost){
               }
             });
           }
-          // Sync task villageois depuis l'hôte
-          if(!myUnitMoving && e.type==='villager'){
+          // Sync task villageois depuis l'hôte (uniquement pour les villageois
+          // qui ne m'appartiennent pas — même logique que pour state/target)
+          if(!isMyUnit && e.type==='villager'){
             if(p.taskSiteId) e.task={siteId:p.taskSiteId};
             else if(p.taskX!==null && p.taskX!==undefined) e.task={x:p.taskX,y:p.taskY};
-            else if(!myUnitMoving) e.task=null;
+            else e.task=null;
           }
-          e.buildDone=!!p.buildDone;
-          e.training=p.training||null;
-          e.trainTimer=p.trainTimer||0;
-          e.cooldown=p.cooldown||0;
-          if(p.rallyX!==undefined) e.rallyX=p.rallyX;
-          if(p.rallyY!==undefined) e.rallyY=p.rallyY;
+          if(!isMyEntity){
+            e.buildDone=!!p.buildDone;
+            e.training=p.training||null;
+            e.trainTimer=p.trainTimer||0;
+            e.cooldown=p.cooldown||0;
+          }
+          if(p.rallyX!==undefined && !isMyEntity) e.rallyX=p.rallyX;
+          if(p.rallyY!==undefined && !isMyEntity) e.rallyY=p.rallyY;
           if(p.mineResource!==undefined) e.mineResource=p.mineResource;
-          if(p.mineralCount!==undefined) e.mineralCount=p.mineralCount;
-          if(p.mineActive!==undefined)   e.mineActive=p.mineActive;
-          if(p.mineTimer!==undefined)    e.mineTimer=p.mineTimer;
-          if(p.repairing!==undefined)    e.repairing=p.repairing;
-          if(p.repairProgress!==undefined) e.repairProgress=p.repairProgress;
-          if(p.repairTime!==undefined)   e.repairTime=p.repairTime;
-          if(p.demolishing!==undefined)  e.demolishing=p.demolishing;
-          if(p.demolishProgress!==undefined) e.demolishProgress=p.demolishProgress;
-          if(p.demolishTime!==undefined) e.demolishTime=p.demolishTime;
+          if(!isMyEntity){
+            if(p.mineralCount!==undefined) e.mineralCount=p.mineralCount;
+            if(p.mineActive!==undefined)   e.mineActive=p.mineActive;
+            if(p.mineTimer!==undefined)    e.mineTimer=p.mineTimer;
+            if(p.repairing!==undefined)    e.repairing=p.repairing;
+            if(p.repairProgress!==undefined) e.repairProgress=p.repairProgress;
+            if(p.repairTime!==undefined)   e.repairTime=p.repairTime;
+            if(p.demolishing!==undefined)  e.demolishing=p.demolishing;
+            if(p.demolishProgress!==undefined) e.demolishProgress=p.demolishProgress;
+            if(p.demolishTime!==undefined) e.demolishTime=p.demolishTime;
+          }
         });
 
         // Supprimer les entités que l'hôte n'a plus
