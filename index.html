@@ -6172,14 +6172,13 @@ function handlePeerData(data,conn,fromHost){
             }
             // Sinon : ne rien toucher (quasi-identique, éviter micro-jerks)
           }
-          // Toujours sync hp ; state/target uniquement pour les unités qui NE
-          // M'APPARTIENNENT PAS — ma propre simulation locale fait déjà foi pour
-          // le comportement de mes propres unités (pas seulement en déplacement :
-          // récolte, livraison, construction...), sinon une correction de l'hôte
-          // en retard peut interrompre une action en cours avant qu'elle n'aboutisse
-          // (ex: livraison de ressources jamais créditée).
+          // Toujours sync hp ; state/target avec la même protection qu'avant (uniquement
+          // pendant un déplacement actif) — l'hôte doit rester la référence pour le
+          // comportement de mes unités la plupart du temps, sinon ma vue locale peut
+          // dériver indéfiniment de celle des autres joueurs (mouvements saccadés,
+          // tâches qui semblent s'annuler, parties qui divergent avec le temps).
           e.hp=p.hp; e.maxHp=p.maxHp||e.maxHp||1;
-          if(!isMyUnit){
+          if(!myUnitMoving){
             e.state=p.state;
             e.target=p.tx!==null?{x:p.tx,y:p.ty}:null;
           }
@@ -6214,9 +6213,9 @@ function handlePeerData(data,conn,fromHost){
               }
             });
           }
-          // Sync task villageois depuis l'hôte (uniquement pour les villageois
-          // qui ne m'appartiennent pas — même logique que pour state/target)
-          if(!isMyUnit && e.type==='villager'){
+          // Sync task villageois depuis l'hôte (même protection que state/target :
+          // seulement pendant un déplacement actif, sinon l'hôte reste la référence)
+          if(!myUnitMoving && e.type==='villager'){
             if(p.taskSiteId) e.task={siteId:p.taskSiteId};
             else if(p.taskX!==null && p.taskX!==undefined) e.task={x:p.taskX,y:p.taskY};
             else e.task=null;
